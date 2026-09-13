@@ -70,7 +70,7 @@ export function OnboardingBanner() {
         {/* Top Action Buttons */}
         <div className="flex items-center gap-2.5">
           {/* 1-Click Database Seeding Button */}
-          <button
+          {/* <button
             type="button"
             onClick={handleSeed}
             disabled={isSeeding}
@@ -87,7 +87,7 @@ export function OnboardingBanner() {
                 <span>Seed Demo Database</span>
               </>
             )}
-          </button>
+          </button> */}
 
           {/* Complete Profile Toggle Button */}
           <button
