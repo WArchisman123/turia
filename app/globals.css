@@ -1,0 +1,255 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  --background: #F8FAFC;
+  --foreground: #0F172A;
+  --card: #FFFFFF;
+  --card-foreground: #0F172A;
+  --border: #E2E8F0;
+  --muted: #64748B;
+  --font-inter: var(--font-inter, "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif);
+}
+
+.dark {
+  --background: #0B0F19;
+  --foreground: #F8FAFC;
+  --card: #111827;
+  --card-foreground: #F8FAFC;
+  --border: #1E293B;
+  --muted: #94A3B8;
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-inter);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-inter), system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ==========================================================================
+   DARK THEME SURFACE & TYPOGRAPHY OVERRIDES
+   Ensures comprehensive high-contrast theme switching without modifying 50+ files
+   ========================================================================== */
+
+/* Background surfaces */
+.dark body {
+  background-color: #0B0F19;
+  color: #F8FAFC;
+}
+
+.dark .bg-white {
+  background-color: #111827 !important;
+}
+
+.dark .bg-\[\#F8FAFC\] {
+  background-color: #0B0F19 !important;
+}
+
+.dark .bg-slate-50 {
+  background-color: #151D2F !important;
+}
+
+.dark .bg-slate-100 {
+  background-color: #1E293B !important;
+}
+
+/* Hover states */
+.dark .hover\:bg-slate-50:hover {
+  background-color: #1E293B !important;
+}
+
+.dark .hover\:bg-slate-100:hover {
+  background-color: #243048 !important;
+}
+
+.dark .hover\:bg-slate-200:hover {
+  background-color: #334155 !important;
+}
+
+/* Borders and Dividers */
+.dark .border-\[\#E2E8F0\],
+.dark .border-slate-200,
+.dark .border-slate-100 {
+  border-color: #1E293B !important;
+}
+
+.dark .border-slate-300 {
+  border-color: #334155 !important;
+}
+
+.dark .divide-slate-200 > :not([hidden]) ~ :not([hidden]),
+.dark .divide-slate-100 > :not([hidden]) ~ :not([hidden]) {
+  border-color: #1E293B !important;
+}
+
+/* Typography Overrides */
+.dark .text-\[\#0F172A\],
+.dark .text-slate-900 {
+  color: #F8FAFC !important;
+}
+
+.dark .text-slate-800 {
+  color: #F1F5F9 !important;
+}
+
+.dark .text-slate-700 {
+  color: #CBD5E1 !important;
+}
+
+.dark .text-slate-600 {
+  color: #94A3B8 !important;
+}
+
+.dark .text-slate-500 {
+  color: #94A3B8 !important;
+}
+
+.dark .text-slate-400 {
+  color: #64748B !important;
+}
+
+/* Form Controls, Inputs, Selects & Textareas */
+.dark input:not([type="checkbox"]):not([type="radio"]),
+.dark select,
+.dark textarea {
+  background-color: #151D2F !important;
+  border-color: #334155 !important;
+  color: #F8FAFC !important;
+}
+
+.dark input::placeholder,
+.dark textarea::placeholder {
+  color: #64748B !important;
+}
+
+.dark select option {
+  background-color: #111827 !important;
+  color: #F8FAFC !important;
+}
+
+/* Checkboxes */
+.dark input[type="checkbox"] {
+  border-color: #475569;
+  background-color: #1E293B;
+}
+
+/* Tables */
+.dark table {
+  background-color: #111827;
+  color: #F8FAFC;
+}
+
+.dark table thead {
+  background-color: #151D2F !important;
+}
+
+.dark table thead th {
+  background-color: #151D2F !important;
+  color: #94A3B8 !important;
+  border-color: #1E293B !important;
+}
+
+.dark table tbody tr {
+  border-color: #1E293B !important;
+}
+
+.dark table tbody tr:hover {
+  background-color: #172136 !important;
+}
+
+/* Modals, Dialogs, Dropdowns & Drawers */
+.dark [role="dialog"],
+.dark [role="menu"],
+.dark .dialog-content {
+  background-color: #111827 !important;
+  color: #F8FAFC !important;
+  border-color: #1E293B !important;
+}
+
+/* Badges & Status Pills in Dark Mode (Modern translucent styling) */
+.dark .bg-emerald-50 {
+  background-color: rgba(16, 185, 129, 0.15) !important;
+}
+.dark .border-emerald-200 {
+  border-color: rgba(16, 185, 129, 0.3) !important;
+}
+.dark .text-emerald-700,
+.dark .text-emerald-800 {
+  color: #34D399 !important;
+}
+
+.dark .bg-amber-50 {
+  background-color: rgba(245, 158, 11, 0.15) !important;
+}
+.dark .border-amber-200 {
+  border-color: rgba(245, 158, 11, 0.3) !important;
+}
+.dark .text-amber-700,
+.dark .text-amber-800 {
+  color: #FBBF24 !important;
+}
+
+.dark .bg-red-50 {
+  background-color: rgba(239, 68, 68, 0.15) !important;
+}
+.dark .border-red-200 {
+  border-color: rgba(239, 68, 68, 0.3) !important;
+}
+.dark .text-red-700,
+.dark .text-red-800 {
+  color: #F87171 !important;
+}
+
+.dark .bg-blue-50 {
+  background-color: rgba(59, 130, 246, 0.15) !important;
+}
+.dark .border-blue-200 {
+  border-color: rgba(59, 130, 246, 0.3) !important;
+}
+.dark .text-blue-700,
+.dark .text-blue-800 {
+  color: #60A5FA !important;
+}
+
+.dark .bg-indigo-50 {
+  background-color: rgba(99, 102, 241, 0.18) !important;
+}
+.dark .border-indigo-200 {
+  border-color: rgba(99, 102, 241, 0.3) !important;
+}
+.dark .text-indigo-700,
+.dark .text-indigo-800 {
+  color: #818CF8 !important;
+}
+
+.dark .bg-purple-50 {
+  background-color: rgba(168, 85, 247, 0.15) !important;
+}
+.dark .border-purple-200 {
+  border-color: rgba(168, 85, 247, 0.3) !important;
+}
+.dark .text-purple-700,
+.dark .text-purple-800 {
+  color: #C084FC !important;
+}
+
+/* Clerk Component Adjustments in Dark Mode */
+.dark .cl-organizationSwitcherTrigger {
+  background-color: #151D2F !important;
+  border-color: #334155 !important;
+  color: #F8FAFC !important;
+}
+
+.dark .cl-organizationPreviewMainIdentifier {
+  color: #F8FAFC !important;
+}
