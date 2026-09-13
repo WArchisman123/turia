@@ -17,14 +17,14 @@ import {
   createService,
   updateService,
   deleteService,
-} from "@/lib/api/services";
+} from "@/lib/api";
+import { PageLoadingState } from "@/components/ui/loading-state";
 import {
   Search,
   MoreVertical,
   Upload,
   Download,
   FileSpreadsheet,
-  RotateCw,
 } from "lucide-react";
 
 export default function ServicesPage() {
@@ -266,117 +266,123 @@ export default function ServicesPage() {
   return (
     <AppShell>
       <div className="space-y-4">
-        {/* Top 6 KPI Metric Cards matching services-1.png */}
-        <ServicesKpiStrip kpi={kpiData} />
+        {isLoading ? (
+          <PageLoadingState
+            title="Loading Services Catalog & Master Repository..."
+            subtitle="Syncing commercial SAC codes, statutory TAT timelines, and recurring compliance schedules"
+            kpiCount={6}
+            skeletonRows={6}
+          />
+        ) : (
+          <>
+            {/* Top 6 KPI Metric Cards matching services-1.png */}
+            <ServicesKpiStrip kpi={kpiData} />
 
-        {/* Section Header & Toolbar */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-2">
-          <div className="flex items-center gap-2">
-            <h1 className="text-base font-bold text-slate-900 tracking-tight">
-              Service ({services.length})
-            </h1>
-            {isLoading && (
-              <span className="text-[10px] text-slate-400 font-mono flex items-center gap-1">
-                <RotateCw className="size-3 animate-spin text-indigo-600" /> Syncing...
-              </span>
-            )}
-          </div>
+            {/* Section Header & Toolbar */}
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-2">
+              <div className="flex items-center gap-2">
+                <h1 className="text-base font-bold text-slate-900 tracking-tight">
+                  Service ({services.length})
+                </h1>
+              </div>
 
-          <div className="flex items-center gap-2">
-            {/* Search Input */}
-            <div className="relative">
-              <Search className="size-3.5 absolute left-3 top-2.5 text-slate-400" />
-              <input
-                type="text"
-                placeholder="Search"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-8 pr-3 py-1.5 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 w-44 sm:w-60 shadow-2xs"
-              />
-            </div>
-
-            {/* Sort Dropdown */}
-            <div className="relative">
-              <select
-                value={sortBy}
-                onChange={(e) =>
-                  setSortBy(e.target.value as "popular" | "name_asc" | "fee_desc" | "fee_asc")
-                }
-                className="px-2.5 py-1.5 bg-white border border-slate-200 rounded-xl text-xs text-slate-700 font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-2xs cursor-pointer"
-              >
-                <option value="popular">Most Popular</option>
-                <option value="name_asc">Name (A-Z)</option>
-                <option value="fee_desc">Fee (High to Low)</option>
-                <option value="fee_asc">Fee (Low to High)</option>
-              </select>
-            </div>
-
-            {/* Add Primary Button */}
-            <button
-              type="button"
-              onClick={() => setIsAddModalOpen(true)}
-              className="px-4 py-1.5 bg-[#6366F1] hover:bg-indigo-700 text-white font-semibold text-xs rounded-xl shadow-xs transition-colors cursor-pointer flex items-center gap-1"
-            >
-              <span>Add</span>
-            </button>
-
-            {/* 3-Dots Action Menu */}
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => setIsTopMenuOpen(!isTopMenuOpen)}
-                className="p-1.5 bg-white hover:bg-slate-50 border border-slate-200 rounded-xl text-slate-600 transition-colors cursor-pointer shadow-2xs"
-              >
-                <MoreVertical className="size-4" />
-              </button>
-
-              {isTopMenuOpen && (
-                <div className="absolute right-0 top-10 w-52 bg-white rounded-xl shadow-xl border border-slate-200 py-1.5 z-30 animate-in fade-in zoom-in-95 duration-100">
-                  <button
-                    type="button"
-                    onClick={handleDownloadTemplate}
-                    className="w-full px-3.5 py-2 text-xs text-slate-700 hover:bg-slate-50 flex items-center gap-2.5 font-medium cursor-pointer transition-colors text-left"
-                  >
-                    <FileSpreadsheet className="size-4 text-emerald-600" />
-                    <span>Download Sample Template</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsImportModalOpen(true);
-                      setIsTopMenuOpen(false);
-                    }}
-                    className="w-full px-3.5 py-2 text-xs text-slate-700 hover:bg-slate-50 flex items-center gap-2.5 font-medium cursor-pointer transition-colors text-left"
-                  >
-                    <Upload className="size-4 text-indigo-600" />
-                    <span>Import Services (XLSX/CSV)</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={handleExportServices}
-                    className="w-full px-3.5 py-2 text-xs text-slate-700 hover:bg-slate-50 flex items-center gap-2.5 font-medium cursor-pointer transition-colors text-left"
-                  >
-                    <Download className="size-4 text-sky-600" />
-                    <span>Export Services Catalog</span>
-                  </button>
+              <div className="flex items-center gap-2">
+                {/* Search Input */}
+                <div className="relative">
+                  <Search className="size-3.5 absolute left-3 top-2.5 text-slate-400" />
+                  <input
+                    type="text"
+                    placeholder="Search"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-8 pr-3 py-1.5 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 w-44 sm:w-60 shadow-2xs"
+                  />
                 </div>
-              )}
-            </div>
-          </div>
-        </div>
 
-        {/* 12-Column Main Services Table */}
-        <ServicesTable
-          services={filteredAndSortedServices}
-          onSelectService={(service) => {
-            setSelectedService(service);
-            setIsDetailDrawerOpen(true);
-          }}
-          onDeleteService={handleDeleteService}
-          onToggleStatus={handleToggleStatus}
-        />
+                {/* Sort Dropdown */}
+                <div className="relative">
+                  <select
+                    value={sortBy}
+                    onChange={(e) =>
+                      setSortBy(e.target.value as "popular" | "name_asc" | "fee_desc" | "fee_asc")
+                    }
+                    className="px-2.5 py-1.5 bg-white border border-slate-200 rounded-xl text-xs text-slate-700 font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-2xs cursor-pointer"
+                  >
+                    <option value="popular">Most Popular</option>
+                    <option value="name_asc">Name (A-Z)</option>
+                    <option value="fee_desc">Fee (High to Low)</option>
+                    <option value="fee_asc">Fee (Low to High)</option>
+                  </select>
+                </div>
+
+                {/* Add Primary Button */}
+                <button
+                  type="button"
+                  onClick={() => setIsAddModalOpen(true)}
+                  className="px-4 py-1.5 bg-[#6366F1] hover:bg-indigo-700 text-white font-semibold text-xs rounded-xl shadow-xs transition-colors cursor-pointer flex items-center gap-1"
+                >
+                  <span>Add</span>
+                </button>
+
+                {/* 3-Dots Action Menu */}
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setIsTopMenuOpen(!isTopMenuOpen)}
+                    className="p-1.5 bg-white hover:bg-slate-50 border border-slate-200 rounded-xl text-slate-600 transition-colors cursor-pointer shadow-2xs"
+                  >
+                    <MoreVertical className="size-4" />
+                  </button>
+
+                  {isTopMenuOpen && (
+                    <div className="absolute right-0 top-10 w-52 bg-white rounded-xl shadow-xl border border-slate-200 py-1.5 z-30 animate-in fade-in zoom-in-95 duration-100">
+                      <button
+                        type="button"
+                        onClick={handleDownloadTemplate}
+                        className="w-full px-3.5 py-2 text-xs text-slate-700 hover:bg-slate-50 flex items-center gap-2.5 font-medium cursor-pointer transition-colors text-left"
+                      >
+                        <FileSpreadsheet className="size-4 text-emerald-600" />
+                        <span>Download Sample Template</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsImportModalOpen(true);
+                          setIsTopMenuOpen(false);
+                        }}
+                        className="w-full px-3.5 py-2 text-xs text-slate-700 hover:bg-slate-50 flex items-center gap-2.5 font-medium cursor-pointer transition-colors text-left"
+                      >
+                        <Upload className="size-4 text-indigo-600" />
+                        <span>Import Services (XLSX/CSV)</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={handleExportServices}
+                        className="w-full px-3.5 py-2 text-xs text-slate-700 hover:bg-slate-50 flex items-center gap-2.5 font-medium cursor-pointer transition-colors text-left"
+                      >
+                        <Download className="size-4 text-sky-600" />
+                        <span>Export Services Catalog</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* 12-Column Main Services Table */}
+            <ServicesTable
+              services={filteredAndSortedServices}
+              onSelectService={(service) => {
+                setSelectedService(service);
+                setIsDetailDrawerOpen(true);
+              }}
+              onDeleteService={handleDeleteService}
+              onToggleStatus={handleToggleStatus}
+            />
+          </>
+        )}
 
         {/* Add Service Modal */}
         <AddServiceModal

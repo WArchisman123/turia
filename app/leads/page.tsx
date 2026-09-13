@@ -9,6 +9,7 @@ import { AddLeadModal } from "@/components/leads/add-lead-modal";
 import { ImportLeadsModal } from "@/components/leads/import-leads-modal";
 import { LeadItem, LeadFilterState } from "@/components/leads/types";
 import { fetchLeads, createLead, updateLeadStatus, deleteLead } from "@/lib/api";
+import { PageLoadingState } from "@/components/ui/loading-state";
 import {
   UserPlus,
   Filter,
@@ -370,27 +371,38 @@ export default function LeadsPage() {
             </div>
           </div>
 
-          {/* 6 Top KPI Metric Cards */}
-          <LeadsKpiStrip leads={leads} />
+          {isLoading ? (
+            <PageLoadingState
+              title="Loading Leads Pipeline & Prospect Intelligence..."
+              subtitle="Syncing statutory inquiries, live GST verification status, and conversion deal metrics"
+              kpiCount={6}
+              skeletonRows={6}
+            />
+          ) : (
+            <>
+              {/* 6 Top KPI Metric Cards */}
+              <LeadsKpiStrip leads={leads} />
 
-          {/* Dynamic Expandable Filter Bar with Dual Range Sliders */}
-          <LeadsFilterBar
-            isOpen={isFilterBarOpen}
-            filters={filters}
-            onFilterChange={(newFilters) => setFilters(newFilters)}
-            onClear={() => setFilters(DEFAULT_FILTERS)}
-            onClose={() => setIsFilterBarOpen(false)}
-          />
+              {/* Dynamic Expandable Filter Bar with Dual Range Sliders */}
+              <LeadsFilterBar
+                isOpen={isFilterBarOpen}
+                filters={filters}
+                onFilterChange={(newFilters) => setFilters(newFilters)}
+                onClear={() => setFilters(DEFAULT_FILTERS)}
+                onClose={() => setIsFilterBarOpen(false)}
+              />
 
-          {/* 13-Column Leads Table */}
-          <LeadsTable
-            leads={filteredLeads}
-            onConvertLead={handleConvertLead}
-            onMarkLost={handleMarkLost}
-            onDeleteLead={handleDeleteLead}
-            onBatchConvert={handleBatchConvert}
-            onBatchDelete={handleBatchDelete}
-          />
+              {/* 13-Column Leads Table */}
+              <LeadsTable
+                leads={filteredLeads}
+                onConvertLead={handleConvertLead}
+                onMarkLost={handleMarkLost}
+                onDeleteLead={handleDeleteLead}
+                onBatchConvert={handleBatchConvert}
+                onBatchDelete={handleBatchDelete}
+              />
+            </>
+          )}
 
           {/* 5-Section Add Lead Modal with Live GST Verification */}
           <AddLeadModal
