@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo, useTransition } from "react";
+import Link from "next/link";
 import { AppShell } from "@/components/layout/app-shell";
 import { LeadsKpiStrip } from "@/components/leads/leads-kpi-strip";
 import { LeadsFilterBar } from "@/components/leads/leads-filter-bar";
@@ -8,7 +9,15 @@ import { LeadsTable } from "@/components/leads/leads-table";
 import { AddLeadModal } from "@/components/leads/add-lead-modal";
 import { ImportLeadsModal } from "@/components/leads/import-leads-modal";
 import { LeadItem, LeadFilterState } from "@/components/leads/types";
-import { fetchLeads, createLead, updateLeadStatus, deleteLead } from "@/lib/api";
+import {
+  fetchLeads,
+  createLead,
+  updateLeadStatus,
+  deleteLead,
+  convertLeadToClient,
+  batchConvertLeads,
+  batchDeleteLeads,
+} from "@/lib/api";
 import { PageLoadingState } from "@/components/ui/loading-state";
 import {
   UserPlus,
@@ -19,6 +28,8 @@ import {
   UploadCloud,
   FileSpreadsheet,
   RotateCw,
+  UserCheck,
+  X,
 } from "lucide-react";
 
 const DEFAULT_FILTERS: LeadFilterState = {
@@ -43,6 +54,10 @@ export default function LeadsPage() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isActionsMenuOpen, setIsActionsMenuOpen] = useState(false);
+  const [convertedNotification, setConvertedNotification] = useState<{
+    clientName: string;
+    clientCode?: string;
+  } | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -133,6 +148,8 @@ export default function LeadsPage() {
   };
 
   const handleConvertLead = async (id: string) => {
+    const targetLead = leads.find((l) => l.id === id);
+
     // Optimistic UI update
     setLeads((prev) =>
       prev.map((lead) =>
@@ -140,9 +157,15 @@ export default function LeadsPage() {
       )
     );
 
-    // API update
+    // API update: Convert to Client
     startTransition(async () => {
-      await updateLeadStatus(id, "Converted", "Closed Won");
+      const res = await convertLeadToClient(id, targetLead);
+      if (res.success && targetLead) {
+        setConvertedNotification({
+          clientName: targetLead.leadName,
+          clientCode: res.client?.clientCode,
+        });
+      }
     });
   };
 
@@ -170,7 +193,8 @@ export default function LeadsPage() {
     });
   };
 
-  const handleBatchConvert = (ids: string[]) => {
+  const handleBatchConvert = async (ids: string[]) => {
+    // Optimistic UI update
     setLeads((prev) =>
       prev.map((lead) =>
         ids.includes(lead.id)
@@ -178,10 +202,26 @@ export default function LeadsPage() {
           : lead
       )
     );
+
+    // API batch convert
+    startTransition(async () => {
+      const res = await batchConvertLeads(ids);
+      if (res.success) {
+        setConvertedNotification({
+          clientName: `${res.count} Selected Leads`,
+        });
+      }
+    });
   };
 
-  const handleBatchDelete = (ids: string[]) => {
+  const handleBatchDelete = async (ids: string[]) => {
+    // Optimistic UI update
     setLeads((prev) => prev.filter((lead) => !ids.includes(lead.id)));
+
+    // API batch delete
+    startTransition(async () => {
+      await batchDeleteLeads(ids);
+    });
   };
 
   // Export Leads to CSV
@@ -391,6 +431,33 @@ export default function LeadsPage() {
                 onClear={() => setFilters(DEFAULT_FILTERS)}
                 onClose={() => setIsFilterBarOpen(false)}
               />
+
+              {/* Conversion Success Notification */}
+              {convertedNotification && (
+                <div className="bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/80 rounded-xl p-3.5 flex items-center justify-between animate-in fade-in duration-150 shadow-2xs">
+                  <div className="flex items-center gap-2.5 text-xs text-emerald-800 dark:text-emerald-200">
+                    <UserCheck className="size-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                    <span>
+                      Lead <strong>{convertedNotification.clientName}</strong> was successfully converted into an active Client in the Client Master!
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Link
+                      href="/clients"
+                      className="px-3 py-1 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors cursor-pointer shadow-2xs"
+                    >
+                      View in Client Master →
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={() => setConvertedNotification(null)}
+                      className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1 cursor-pointer"
+                    >
+                      <X className="size-3.5" />
+                    </button>
+                  </div>
+                </div>
+              )}
 
               {/* 13-Column Leads Table */}
               <LeadsTable

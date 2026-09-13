@@ -70,14 +70,40 @@ export async function PATCH(
       .eq("firm_id", tenant.firmId)
       .eq("id", id)
       .select()
-      .single();
+      .maybeSingle();
 
-    if (error) {
-      console.error("Error updating service:", error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
+    let serviceRecord = updated;
+
+    if (error || !serviceRecord) {
+      console.warn("Retrying service update with core columns:", error?.message);
+      const corePayload: Database["public"]["Tables"]["services_master"]["Update"] = {};
+      if (body.serviceName !== undefined) corePayload.service_name = body.serviceName;
+      if (body.category !== undefined) corePayload.category = body.category;
+      if (body.sacCode !== undefined) corePayload.sac_code = body.sacCode;
+      if (body.baseFee !== undefined) corePayload.base_fee = Number(body.baseFee);
+      if (body.gstRate !== undefined) corePayload.gst_rate = Number(body.gstRate);
+      if (body.tatDays !== undefined) corePayload.tat_days = Number(body.tatDays);
+      if (body.isRecurring !== undefined) corePayload.is_recurring = Boolean(body.isRecurring);
+      if (body.recurrenceFrequency !== undefined) corePayload.recurrence_frequency = body.recurrenceFrequency;
+      if (body.isActive !== undefined) corePayload.is_active = Boolean(body.isActive);
+
+      const { data: coreUpdated, error: coreErr } = await supabase
+        .from("services_master")
+        .update(corePayload)
+        .eq("firm_id", tenant.firmId)
+        .eq("id", id)
+        .select()
+        .maybeSingle();
+
+      if (!coreErr && coreUpdated) {
+        serviceRecord = coreUpdated;
+      } else {
+        console.error("Error updating service:", error || coreErr);
+        return NextResponse.json({ error: error?.message || coreErr?.message }, { status: 500 });
+      }
     }
 
-    return NextResponse.json({ success: true, service: updated });
+    return NextResponse.json({ success: true, service: serviceRecord });
   } catch (error) {
     console.error("Error in PATCH /api/services/[id]:", error);
     return NextResponse.json({ error: "Failed to update service" }, { status: 500 });

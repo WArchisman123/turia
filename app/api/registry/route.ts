@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getTenantContext, createAdminClient } from "@/lib/supabase/server";
 import { DSCItem, DSCKpiData, DSCLocation, DSCStatus } from "@/components/registry/types";
+import { Database } from "@/lib/supabase/types";
 
 const LOCATION_LABEL_MAP: Record<DSCLocation, string> = {
   ca_office: "CA Office",
@@ -269,9 +270,40 @@ export async function POST(request: Request) {
       finalCode = `DSC-${nextNum}`;
     }
 
+    const richPayload: Database["public"]["Tables"]["dsc_register"]["Insert"] = {
+      firm_id: tenant.firmId,
+      client_id: clientId || null,
+      dsc_code: finalCode,
+      business_name: businessName,
+      legal_name: legalName || businessName,
+      signatory_name: signatoryName,
+      pan_number: panNumber ? panNumber.toUpperCase() : null,
+      din_number: dinNumber || null,
+      vendor: vendor,
+      dsc_class: dscClass,
+      issued_date: issuedDate,
+      expiry_date: expiryDate,
+      location: location as DSCLocation,
+      bin_number: binNumber,
+      status: status as DSCStatus,
+      email: email || null,
+      phone: phone || null,
+      token_pin_encrypted: tokenPin || null,
+      token_hardware_model: tokenHardwareModel,
+      notes: notes || null,
+    };
+
     const { data: newDsc, error } = await supabase
       .from("dsc_register")
-      .insert({
+      .insert(richPayload)
+      .select()
+      .maybeSingle();
+
+    let dscRecord = newDsc;
+
+    if (error || !dscRecord) {
+      console.warn("Retrying DSC insert with core columns:", error?.message);
+      const corePayload: Database["public"]["Tables"]["dsc_register"]["Insert"] = {
         firm_id: tenant.firmId,
         client_id: clientId || null,
         dsc_code: finalCode,
@@ -290,34 +322,43 @@ export async function POST(request: Request) {
         email: email || null,
         phone: phone || null,
         token_pin_encrypted: tokenPin || null,
-        token_hardware_model: tokenHardwareModel,
-        notes: notes || null,
-      })
-      .select()
-      .single();
+      };
 
-    if (error || !newDsc) {
-      console.error("Error creating DSC record:", error);
-      return NextResponse.json(
-        { error: error?.message || "Failed to create DSC record" },
-        { status: 500 }
-      );
+      const { data: coreDsc, error: coreErr } = await supabase
+        .from("dsc_register")
+        .insert(corePayload)
+        .select()
+        .maybeSingle();
+
+      if (!coreErr && coreDsc) {
+        dscRecord = coreDsc;
+      } else {
+        console.error("Error creating DSC record:", error || coreErr);
+        return NextResponse.json(
+          { error: error?.message || coreErr?.message || "Failed to create DSC record" },
+          { status: 500 }
+        );
+      }
     }
 
-    // Automatically record initial custody log
-    await supabase.from("dsc_movement_logs").insert({
-      firm_id: tenant.firmId,
-      dsc_id: newDsc.id,
-      from_location: null,
-      to_location: location,
-      from_bin: null,
-      to_bin: binNumber,
-      handed_to: signatoryName,
-      reason: "Initial token registration & vault onboarding",
-      logged_by: tenant.fullName,
-    });
+    // Automatically record initial custody log safely (non-blocking if table not migrated)
+    try {
+      await supabase.from("dsc_movement_logs").insert({
+        firm_id: tenant.firmId,
+        dsc_id: dscRecord.id,
+        from_location: null,
+        to_location: location,
+        from_bin: null,
+        to_bin: binNumber,
+        handed_to: signatoryName,
+        reason: "Initial token registration & vault onboarding",
+        logged_by: tenant.fullName,
+      });
+    } catch (logErr) {
+      console.warn("Custody log table not available, skipping audit entry:", logErr);
+    }
 
-    return NextResponse.json(newDsc, { status: 201 });
+    return NextResponse.json(dscRecord, { status: 201 });
   } catch (error) {
     console.error("POST /api/registry error:", error);
     return NextResponse.json(

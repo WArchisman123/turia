@@ -695,13 +695,17 @@ export async function POST(req: Request) {
         .single();
 
       if (!error && newTask) {
-        // Record Activity Log
-        await supabase.from("task_activities").insert({
-          firm_id: firmId,
-          task_id: newTask.id,
-          action_type: "Task Created",
-          description: `Compliance Task "${body.taskName}" created and assigned to ${body.assigneeName || "team"}`,
-        });
+        // Record Activity Log safely
+        try {
+          await supabase.from("task_activities").insert({
+            firm_id: firmId,
+            task_id: newTask.id,
+            action_type: "Task Created",
+            description: `Compliance Task "${body.taskName}" created and assigned to ${body.assigneeName || "team"}`,
+          });
+        } catch (actErr) {
+          console.warn("Could not record task activity log:", actErr);
+        }
 
         const createdItem: TaskItem = {
           id: newTask.id,

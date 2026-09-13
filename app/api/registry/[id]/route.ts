@@ -64,18 +64,22 @@ export async function PATCH(
         );
       }
 
-      // Log movement in custody audit trail
-      await supabase.from("dsc_movement_logs").insert({
-        firm_id: tenant.firmId,
-        dsc_id: id,
-        from_location: existing.location,
-        to_location: toLocation,
-        from_bin: existing.bin_number,
-        to_bin: toBin,
-        handed_to: handedTo || null,
-        reason: reason || "Physical token custody transfer",
-        logged_by: loggedBy || tenant.fullName,
-      });
+      // Log movement in custody audit trail safely (non-blocking)
+      try {
+        await supabase.from("dsc_movement_logs").insert({
+          firm_id: tenant.firmId,
+          dsc_id: id,
+          from_location: existing.location,
+          to_location: toLocation,
+          from_bin: existing.bin_number,
+          to_bin: toBin,
+          handed_to: handedTo || null,
+          reason: reason || "Physical token custody transfer",
+          logged_by: loggedBy || tenant.fullName,
+        });
+      } catch (logErr) {
+        console.warn("Custody log table not available, skipping audit entry:", logErr);
+      }
 
       return NextResponse.json({ success: true, dsc: updated });
     }
@@ -109,16 +113,48 @@ export async function PATCH(
       .eq("id", id)
       .eq("firm_id", tenant.firmId)
       .select()
-      .single();
+      .maybeSingle();
 
-    if (updateErr) {
-      return NextResponse.json(
-        { error: updateErr.message || "Failed to update DSC record" },
-        { status: 500 }
-      );
+    let dscRecord = updated;
+
+    if (updateErr || !dscRecord) {
+      console.warn("Retrying DSC update with core columns:", updateErr?.message);
+      const corePayload: DSCUpdatePayload = {};
+      if (body.signatoryName !== undefined) corePayload.signatory_name = body.signatoryName;
+      if (body.businessName !== undefined) corePayload.business_name = body.businessName;
+      if (body.legalName !== undefined) corePayload.legal_name = body.legalName;
+      if (body.panNumber !== undefined) corePayload.pan_number = body.panNumber;
+      if (body.dinNumber !== undefined) corePayload.din_number = body.dinNumber;
+      if (body.vendor !== undefined) corePayload.vendor = body.vendor;
+      if (body.dscClass !== undefined) corePayload.dsc_class = body.dscClass;
+      if (body.issuedDate !== undefined) corePayload.issued_date = body.issuedDate;
+      if (body.expiryDate !== undefined) corePayload.expiry_date = body.expiryDate;
+      if (body.location !== undefined) corePayload.location = body.location;
+      if (body.binNumber !== undefined) corePayload.bin_number = body.binNumber;
+      if (body.status !== undefined) corePayload.status = body.status;
+      if (body.email !== undefined) corePayload.email = body.email;
+      if (body.phone !== undefined) corePayload.phone = body.phone;
+      if (body.tokenPin !== undefined) corePayload.token_pin_encrypted = body.tokenPin;
+
+      const { data: coreUpdated, error: coreErr } = await supabase
+        .from("dsc_register")
+        .update(corePayload)
+        .eq("id", id)
+        .eq("firm_id", tenant.firmId)
+        .select()
+        .maybeSingle();
+
+      if (!coreErr && coreUpdated) {
+        dscRecord = coreUpdated;
+      } else {
+        return NextResponse.json(
+          { error: updateErr?.message || coreErr?.message || "Failed to update DSC record" },
+          { status: 500 }
+        );
+      }
     }
 
-    return NextResponse.json(updated);
+    return NextResponse.json(dscRecord);
   } catch (error) {
     console.error("PATCH /api/registry/[id] error:", error);
     return NextResponse.json(

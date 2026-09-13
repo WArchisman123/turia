@@ -186,22 +186,48 @@ export async function POST(req: Request) {
         associate_partners: associatePartners || null,
         assigned_partner_id: assignedPartnerId || null,
         assigned_manager_id: assignedManagerId || null,
-        status: "active",
       })
       .select()
-      .single();
+      .maybeSingle();
 
-    if (error) {
-      console.error("Supabase insert client error:", error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
+    let clientRecord = newClient;
+
+    if (error || !clientRecord) {
+      // Schema resilience: fallback to core schema columns if migration is pending
+      const { data: coreClient, error: coreErr } = await supabase
+        .from("clients")
+        .insert({
+          firm_id: firmId,
+          client_code: code,
+          trade_name: businessName,
+          legal_name: legalName || businessName,
+          entity_type: businessEntity,
+          pan_number: pan || null,
+          cin_number: registrationNo || null,
+          primary_gstin: gstin || null,
+          primary_email: primaryEmail || null,
+          primary_phone: primaryPhone || null,
+          assigned_partner_id: assignedPartnerId || null,
+          assigned_manager_id: assignedManagerId || null,
+          status: "active",
+        })
+        .select()
+        .maybeSingle();
+
+      if (!coreErr && coreClient) {
+        clientRecord = coreClient;
+      } else {
+        console.error("Supabase insert client error:", error || coreErr);
+        return NextResponse.json({ error: error?.message || coreErr?.message }, { status: 500 });
+      }
     }
 
     // Also record primary GSTIN in client_gstins if provided
-    if (gstin && newClient) {
+    if (gstin && clientRecord) {
       const stateCode = gstin.substring(0, 2);
       await supabase.from("client_gstins").insert({
         firm_id: firmId,
-        client_id: newClient.id,
+        client_id: clientRecord.id,
         gstin: gstin.toUpperCase(),
         state: state || "West Bengal",
         state_code: stateCode,
@@ -211,10 +237,10 @@ export async function POST(req: Request) {
     }
 
     // Also record key contact in client_contacts if provided
-    if (contactName && newClient) {
+    if (contactName && clientRecord) {
       await supabase.from("client_contacts").insert({
         firm_id: firmId,
-        client_id: newClient.id,
+        client_id: clientRecord.id,
         name: contactName,
         designation: "Director / Auth Signatory",
         email: primaryEmail || undefined,
@@ -224,39 +250,39 @@ export async function POST(req: Request) {
     }
 
     const formatted: ClientItem = {
-      id: newClient.id,
-      clientCode: newClient.client_code,
-      tradeName: newClient.trade_name,
-      legalName: newClient.legal_name,
-      contactName: newClient.contact_name || "Authorized Director",
-      email: newClient.primary_email || "",
-      mobileNo: newClient.primary_phone || "",
-      createdOn: new Date(newClient.created_at).toLocaleDateString("en-GB", {
+      id: clientRecord.id,
+      clientCode: clientRecord.client_code,
+      tradeName: clientRecord.trade_name,
+      legalName: clientRecord.legal_name,
+      contactName: (clientRecord as Record<string, unknown>).contact_name as string || contactName || "Authorized Director",
+      email: clientRecord.primary_email || "",
+      mobileNo: clientRecord.primary_phone || "",
+      createdOn: new Date(clientRecord.created_at).toLocaleDateString("en-GB", {
         day: "2-digit",
         month: "2-digit",
         year: "numeric",
       }),
-      businessPan: newClient.pan_number || "",
-      registrationNo: newClient.registration_no || newClient.cin_number || "",
-      businessEntity: newClient.entity_type,
-      currency: newClient.currency || "INR",
-      gstin: newClient.primary_gstin || "",
-      placeOfSupply: newClient.place_of_supply || "West Bengal (19)",
-      addressLine1: newClient.address_line_1 || "",
-      addressLine2: newClient.address_line_2 || "",
-      city: newClient.city || "Kolkata",
-      state: newClient.state || "West Bengal",
-      country: newClient.country || "India",
-      pincode: newClient.pin_code || "",
+      businessPan: clientRecord.pan_number || "",
+      registrationNo: (clientRecord as Record<string, unknown>).registration_no as string || clientRecord.cin_number || "",
+      businessEntity: clientRecord.entity_type,
+      currency: (clientRecord as Record<string, unknown>).currency as string || currency || "INR",
+      gstin: clientRecord.primary_gstin || "",
+      placeOfSupply: (clientRecord as Record<string, unknown>).place_of_supply as string || placeOfSupply || "West Bengal (19)",
+      addressLine1: addressLine1 || "",
+      addressLine2: addressLine2 || "",
+      city: city || "Kolkata",
+      state: state || "West Bengal",
+      country: country || "India",
+      pincode: pincode || "",
       status: "active",
-      services: Array.isArray(newClient.services) && newClient.services.length > 0 ? newClient.services : ["Statutory Audit"],
+      services: services || ["Statutory Audit"],
       employeeList: "Assigned Practitioner",
-      groups: newClient.client_group || "Primary Client",
-      auditor: newClient.auditor || "Saha & Associates",
-      labels: Array.isArray(newClient.labels) && newClient.labels.length > 0 ? newClient.labels : ["Corporate"],
-      associatePartners: newClient.associate_partners || "Senior Partner",
-      referredBy: newClient.referred_by || "",
-      source: newClient.source || "Referral",
+      groups: clientGroup || "Primary Client",
+      auditor: auditor || "Saha & Associates",
+      labels: labels || ["Corporate"],
+      associatePartners: associatePartners || "Senior Partner",
+      referredBy: referredBy || "",
+      source: source || "Referral",
     };
 
     return NextResponse.json({ success: true, client: formatted });

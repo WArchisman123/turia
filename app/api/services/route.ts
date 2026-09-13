@@ -343,83 +343,117 @@ export async function POST(req: Request) {
     const code = `SRV-${category.slice(0, 3).toUpperCase()}-${Date.now().toString().slice(-3)}`;
     const supabase = createAdminClient();
 
+    const richPayload = {
+      firm_id: firmId,
+      service_code: code,
+      service_name: serviceName,
+      category,
+      sac_code: sacCode || "998231",
+      billing_type: "fixed",
+      base_fee: Number(professionalFee) || 0,
+      gst_rate: Number(taxRate) || 18,
+      estimated_hours: Number(tatDays) * 4 || 8,
+      tat_days: Number(tatDays) || 7,
+      tat_hours: tatHours || "00:00",
+      is_recurring: Boolean(isRecurring),
+      recurrence_frequency: frequency || (isRecurring ? "Monthly" : "One Time"),
+      difficulty_level: difficulty || "Intermediate",
+      description: description || "",
+      due_timing: "Within period",
+      start_day: "Day 1",
+      target_due_day: `Day ${tatDays || 7}`,
+      end_day: `Day ${tatDays ? Number(tatDays) + 3 : 10}`,
+      exemption_reason: exemptionReason || "",
+      out_of_pocket_budget: Number(maxOopBudget) || 0,
+      sop_count: 5,
+      subtasks_count: 4,
+      notes: note || "",
+      is_default: Boolean(isDefault),
+      is_active: true,
+    };
+
     const { data: newService, error } = await supabase
       .from("services_master")
-      .insert({
-        firm_id: firmId,
-        service_code: code,
-        service_name: serviceName,
-        category,
-        sac_code: sacCode || "998231",
-        billing_type: "fixed",
-        base_fee: Number(professionalFee) || 0,
-        gst_rate: Number(taxRate) || 18,
-        estimated_hours: Number(tatDays) * 4 || 8,
-        tat_days: Number(tatDays) || 7,
-        tat_hours: tatHours || "00:00",
-        is_recurring: Boolean(isRecurring),
-        recurrence_frequency: frequency || (isRecurring ? "Monthly" : "One Time"),
-        difficulty_level: difficulty || "Intermediate",
-        description: description || "",
-        due_timing: "Within period",
-        start_day: "Day 1",
-        target_due_day: `Day ${tatDays || 7}`,
-        end_day: `Day ${tatDays ? Number(tatDays) + 3 : 10}`,
-        exemption_reason: exemptionReason || "",
-        out_of_pocket_budget: Number(maxOopBudget) || 0,
-        sop_count: 5,
-        subtasks_count: 4,
-        notes: note || "",
-        is_default: Boolean(isDefault),
-        is_active: true,
-      })
+      .insert(richPayload)
       .select()
-      .single();
+      .maybeSingle();
 
-    if (error) {
-      console.error("Supabase insert service error:", error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
+    let serviceRecord = newService;
+
+    if (error || !serviceRecord) {
+      console.warn("Retrying service insert with core columns:", error?.message);
+      const { data: coreService, error: coreErr } = await supabase
+        .from("services_master")
+        .insert({
+          firm_id: firmId,
+          service_code: code,
+          service_name: serviceName,
+          category,
+          sac_code: sacCode || "998231",
+          billing_type: "fixed",
+          base_fee: Number(professionalFee) || 0,
+          gst_rate: Number(taxRate) || 18,
+          estimated_hours: Number(tatDays) * 4 || 8,
+          tat_days: Number(tatDays) || 7,
+          is_recurring: Boolean(isRecurring),
+          recurrence_frequency: frequency || (isRecurring ? "Monthly" : "One Time"),
+          is_active: true,
+        })
+        .select()
+        .maybeSingle();
+
+      if (!coreErr && coreService) {
+        serviceRecord = coreService;
+      } else {
+        console.error("Supabase insert service error:", error || coreErr);
+        return NextResponse.json({ error: error?.message || coreErr?.message }, { status: 500 });
+      }
     }
 
+    const rec = serviceRecord as Record<string, unknown>;
     const formatted: ServiceItem = {
-      id: newService.id,
-      serviceCode: newService.service_code,
-      serviceName: newService.service_name,
-      category: newService.category,
-      sacCode: newService.sac_code,
-      billingType: newService.billing_type,
-      baseFee: Number(newService.base_fee) || 0,
-      gstRate: Number(newService.gst_rate) || 18,
-      estimatedHours: Number(newService.estimated_hours) || 0,
-      tatDays: Number(newService.tat_days) || 7,
-      tatHours: newService.tat_hours || "00:00",
-      isRecurring: Boolean(newService.is_recurring),
-      recurrenceFrequency: newService.recurrence_frequency || "Monthly",
-      difficultyLevel: (newService.difficulty_level || "Intermediate") as ServiceItem["difficultyLevel"],
-      description: newService.description || "",
-      dueTiming: newService.due_timing || "Within period",
-      startDay: newService.start_day || "Day 1",
-      targetDueDay: newService.target_due_day || "Day 7",
-      endDay: newService.end_day || "Day 10",
-      exemptionReason: newService.exemption_reason || "",
-      outOfPocketBudget: Number(newService.out_of_pocket_budget) || 0,
-      sopCount: Number(newService.sop_count) || 5,
-      subtasksCount: Number(newService.subtasks_count) || 4,
-      notes: newService.notes || "",
-      isDefault: Boolean(newService.is_default),
+      id: (rec.id as string) || `srv-${Date.now()}`,
+      serviceCode: (rec.service_code as string) || code,
+      serviceName: (rec.service_name as string) || serviceName,
+      category: (rec.category as string) || category,
+      sacCode: (rec.sac_code as string) || sacCode || "998231",
+      billingType: (rec.billing_type as string) || "fixed",
+      baseFee: Number(rec.base_fee) || Number(professionalFee) || 0,
+      gstRate: Number(rec.gst_rate) || Number(taxRate) || 18,
+      estimatedHours: Number(rec.estimated_hours) || (Number(tatDays) * 4) || 8,
+      tatDays: Number(rec.tat_days) || Number(tatDays) || 7,
+      tatHours: (rec.tat_hours as string) || tatHours || "00:00",
+      isRecurring: rec.is_recurring !== undefined ? Boolean(rec.is_recurring) : Boolean(isRecurring),
+      recurrenceFrequency: (rec.recurrence_frequency as string) || frequency || (isRecurring ? "Monthly" : "One Time"),
+      difficultyLevel: ((rec.difficulty_level as string) || difficulty || "Intermediate") as ServiceItem["difficultyLevel"],
+      description: (rec.description as string) || description || "",
+      dueTiming: (rec.due_timing as string) || "Within period",
+      startDay: (rec.start_day as string) || "Day 1",
+      targetDueDay: (rec.target_due_day as string) || `Day ${tatDays || 7}`,
+      endDay: (rec.end_day as string) || `Day ${tatDays ? Number(tatDays) + 3 : 10}`,
+      exemptionReason: (rec.exemption_reason as string) || exemptionReason || "",
+      outOfPocketBudget: Number(rec.out_of_pocket_budget) || Number(maxOopBudget) || 0,
+      sopCount: Number(rec.sop_count) || 5,
+      subtasksCount: Number(rec.subtasks_count) || 4,
+      notes: (rec.notes as string) || note || "",
+      isDefault: Boolean(rec.is_default ?? isDefault),
       subtaskTemplates: [],
       checklistTemplates: [],
-      isActive: true,
-      createdOn: new Date(newService.created_at).toLocaleDateString("en-GB", {
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric",
-      }),
-      updatedOn: new Date(newService.updated_at || newService.created_at).toLocaleDateString("en-GB", {
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric",
-      }),
+      isActive: rec.is_active !== undefined ? Boolean(rec.is_active) : true,
+      createdOn: rec.created_at
+        ? new Date(rec.created_at as string).toLocaleDateString("en-GB", {
+            day: "2-digit",
+            month: "2-digit",
+            year: "numeric",
+          })
+        : new Date().toLocaleDateString("en-GB"),
+      updatedOn: rec.updated_at || rec.created_at
+        ? new Date((rec.updated_at || rec.created_at) as string).toLocaleDateString("en-GB", {
+            day: "2-digit",
+            month: "2-digit",
+            year: "numeric",
+          })
+        : new Date().toLocaleDateString("en-GB"),
     };
 
     return NextResponse.json({ success: true, service: formatted });
