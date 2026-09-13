@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useMemo, useRef } from "react";
 import {
   MoreVertical,
   XCircle,
@@ -18,6 +18,7 @@ import {
   TableActiveModifiers,
   TablePagination,
   TableEmptyState,
+  RowActionDropdown,
 } from "@/components/ui/data-table";
 
 interface LeadsTableProps {
@@ -62,16 +63,6 @@ export function LeadsTable({
   const [columnFilters, setColumnFilters] = useState<Record<string, string>>({});
   const [hiddenColumnKeys, setHiddenColumnKeys] = useState<string[]>([]);
 
-  // Close row action menu on outside click
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (!(event.target as HTMLElement).closest(".row-action-menu-container")) {
-        setActiveMenuId(null);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
 
   // Selection handlers
   const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -553,65 +544,19 @@ export function LeadsTable({
                     })}
 
                     {/* Actions Menu */}
-                    <td className="py-3 px-4 text-right relative row-action-menu-container">
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setActiveMenuId(
-                            activeMenuId === lead.id ? null : lead.id
-                          );
-                        }}
-                        className="p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
-                      >
-                        <MoreVertical className="size-4" />
-                      </button>
-
-                      {/* Dropdown Menu */}
-                      {activeMenuId === lead.id && (
-                        <div className="absolute right-4 top-10 w-44 bg-white rounded-xl shadow-xl border border-slate-200 py-1.5 z-30 animate-in fade-in zoom-in-95 duration-100 text-left">
-                          {lead.status === "Open" && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                onConvertLead(lead.id);
-                                setActiveMenuId(null);
-                              }}
-                              className="w-full px-3 py-1.5 text-xs text-emerald-700 hover:bg-emerald-50 flex items-center gap-2 font-semibold cursor-pointer transition-colors"
-                            >
-                              <UserCheck className="size-3.5 text-emerald-600" />{" "}
-                              Convert to Client
-                            </button>
-                          )}
-
-                          {lead.status === "Open" && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                onMarkLost(lead.id);
-                                setActiveMenuId(null);
-                              }}
-                              className="w-full px-3 py-1.5 text-xs text-rose-700 hover:bg-rose-50 flex items-center gap-2 font-medium cursor-pointer transition-colors"
-                            >
-                              <XCircle className="size-3.5 text-rose-500" /> Mark as
-                              Lost
-                            </button>
-                          )}
-
-                          <button
-                            type="button"
-                            onClick={() => {
-                              onDeleteLead(lead.id);
-                              setActiveMenuId(null);
-                            }}
-                            className="w-full px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-50 flex items-center gap-2 font-medium cursor-pointer transition-colors"
-                          >
-                            <Trash2 className="size-3.5 text-slate-400" /> Delete
-                            Lead
-                          </button>
-                        </div>
-                      )}
-                    </td>
+                    <LeadRowActionCell
+                      lead={lead}
+                      isOpen={activeMenuId === lead.id}
+                      onToggle={() =>
+                        setActiveMenuId(
+                          activeMenuId === lead.id ? null : lead.id
+                        )
+                      }
+                      onClose={() => setActiveMenuId(null)}
+                      onConvertLead={onConvertLead}
+                      onMarkLost={onMarkLost}
+                      onDeleteLead={onDeleteLead}
+                    />
                   </tr>
                 );
               })
@@ -637,5 +582,95 @@ export function LeadsTable({
         rowsPerPageOptions={[20, 50, 100]}
       />
     </div>
+  );
+}
+
+interface LeadRowActionCellProps {
+  lead: LeadItem;
+  isOpen: boolean;
+  onToggle: () => void;
+  onClose: () => void;
+  onConvertLead: (id: string) => void;
+  onMarkLost: (id: string) => void;
+  onDeleteLead: (id: string) => void;
+}
+
+function LeadRowActionCell({
+  lead,
+  isOpen,
+  onToggle,
+  onClose,
+  onConvertLead,
+  onMarkLost,
+  onDeleteLead,
+}: LeadRowActionCellProps) {
+  const triggerRef = useRef<HTMLButtonElement>(null);
+
+  return (
+    <td className="py-3 px-4 text-right">
+      <button
+        ref={triggerRef}
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          onToggle();
+        }}
+        className={`p-1 rounded-lg transition-colors cursor-pointer ${
+          isOpen
+            ? "text-slate-900 bg-slate-100"
+            : "text-slate-400 hover:text-slate-700 hover:bg-slate-100"
+        }`}
+        title="Lead actions"
+      >
+        <MoreVertical className="size-4" />
+      </button>
+
+      <RowActionDropdown
+        isOpen={isOpen}
+        onClose={onClose}
+        triggerRef={triggerRef}
+        width={176}
+      >
+        {lead.status === "Open" && (
+          <button
+            type="button"
+            onClick={() => {
+              onConvertLead(lead.id);
+              onClose();
+            }}
+            className="w-full px-3 py-1.5 text-xs text-emerald-700 hover:bg-emerald-50 flex items-center gap-2 font-semibold cursor-pointer transition-colors"
+          >
+            <UserCheck className="size-3.5 text-emerald-600" />
+            <span>Convert to Client</span>
+          </button>
+        )}
+
+        {lead.status === "Open" && (
+          <button
+            type="button"
+            onClick={() => {
+              onMarkLost(lead.id);
+              onClose();
+            }}
+            className="w-full px-3 py-1.5 text-xs text-rose-700 hover:bg-rose-50 flex items-center gap-2 font-medium cursor-pointer transition-colors"
+          >
+            <XCircle className="size-3.5 text-rose-500" />
+            <span>Mark as Lost</span>
+          </button>
+        )}
+
+        <button
+          type="button"
+          onClick={() => {
+            onDeleteLead(lead.id);
+            onClose();
+          }}
+          className="w-full px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-50 flex items-center gap-2 font-medium cursor-pointer transition-colors"
+        >
+          <Trash2 className="size-3.5 text-slate-400" />
+          <span>Delete Lead</span>
+        </button>
+      </RowActionDropdown>
+    </td>
   );
 }

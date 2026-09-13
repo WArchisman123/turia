@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useRef } from "react";
 import {
   FileText,
   Clock,
@@ -22,6 +22,7 @@ import {
   TableHeaderCell,
   TablePagination,
   TableEmptyState,
+  RowActionDropdown,
 } from "@/components/ui/data-table";
 
 interface TaxInvoicesTabProps {
@@ -478,63 +479,17 @@ export function TaxInvoicesTab({
                       </td>
 
                       {/* Actions */}
-                      <td className="py-3 px-3 text-center relative">
-                        <div className="relative inline-block">
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setActiveMenuId(activeMenuId === inv.id ? null : inv.id)
-                            }
-                            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
-                          >
-                            <MoreVertical className="size-3.5" />
-                          </button>
-
-                          {activeMenuId === inv.id && (
-                            <div className="absolute right-0 top-8 z-30 w-48 bg-white rounded-xl shadow-lg border border-slate-200 py-1 text-xs text-slate-700">
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  onViewInvoice(inv);
-                                  setActiveMenuId(null);
-                                }}
-                                className="w-full px-3 py-2 hover:bg-slate-50 flex items-center gap-2 text-left cursor-pointer"
-                              >
-                                <Printer className="size-3.5 text-slate-500" />
-                                <span>View / Print Invoice</span>
-                              </button>
-
-                              {inv.balance_due > 0 && (
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    onRecordPayment(inv.id);
-                                    setActiveMenuId(null);
-                                  }}
-                                  className="w-full px-3 py-2 hover:bg-emerald-50 text-emerald-700 font-semibold flex items-center gap-2 text-left cursor-pointer"
-                                >
-                                  <CreditCard className="size-3.5 text-emerald-600" />
-                                  <span>Record Payment</span>
-                                </button>
-                              )}
-
-                              <div className="border-t border-slate-100 my-1" />
-
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  onDeleteInvoice(inv.id);
-                                  setActiveMenuId(null);
-                                }}
-                                className="w-full px-3 py-2 hover:bg-rose-50 text-rose-600 flex items-center gap-2 text-left cursor-pointer"
-                              >
-                                <Trash2 className="size-3.5" />
-                                <span>Delete Invoice</span>
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      </td>
+                      <TaxInvoiceRowActionCell
+                        invoice={inv}
+                        isOpen={activeMenuId === inv.id}
+                        onToggle={() =>
+                          setActiveMenuId(activeMenuId === inv.id ? null : inv.id)
+                        }
+                        onClose={() => setActiveMenuId(null)}
+                        onViewInvoice={onViewInvoice}
+                        onRecordPayment={onRecordPayment}
+                        onDeleteInvoice={onDeleteInvoice}
+                      />
                     </tr>
                   );
                 })
@@ -560,5 +515,95 @@ export function TaxInvoicesTab({
         />
       </div>
     </div>
+  );
+}
+
+interface TaxInvoiceRowActionCellProps {
+  invoice: Invoice;
+  isOpen: boolean;
+  onToggle: () => void;
+  onClose: () => void;
+  onViewInvoice: (invoice: Invoice) => void;
+  onRecordPayment: (invoiceId: string) => void;
+  onDeleteInvoice: (id: string) => Promise<void>;
+}
+
+function TaxInvoiceRowActionCell({
+  invoice,
+  isOpen,
+  onToggle,
+  onClose,
+  onViewInvoice,
+  onRecordPayment,
+  onDeleteInvoice,
+}: TaxInvoiceRowActionCellProps) {
+  const triggerRef = useRef<HTMLButtonElement>(null);
+
+  return (
+    <td className="py-3 px-3 text-center">
+      <button
+        ref={triggerRef}
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          onToggle();
+        }}
+        className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+          isOpen
+            ? "text-slate-900 bg-slate-100"
+            : "text-slate-400 hover:text-slate-700 hover:bg-slate-100"
+        }`}
+        title="Actions"
+      >
+        <MoreVertical className="size-3.5" />
+      </button>
+
+      <RowActionDropdown
+        isOpen={isOpen}
+        onClose={onClose}
+        triggerRef={triggerRef}
+        width={192}
+      >
+        <button
+          type="button"
+          onClick={() => {
+            onViewInvoice(invoice);
+            onClose();
+          }}
+          className="w-full px-3 py-2 hover:bg-slate-50 flex items-center gap-2 text-left cursor-pointer"
+        >
+          <Printer className="size-3.5 text-slate-500" />
+          <span>View / Print Invoice</span>
+        </button>
+
+        {invoice.balance_due > 0 && (
+          <button
+            type="button"
+            onClick={() => {
+              onRecordPayment(invoice.id);
+              onClose();
+            }}
+            className="w-full px-3 py-2 hover:bg-emerald-50 text-emerald-700 font-semibold flex items-center gap-2 text-left cursor-pointer"
+          >
+            <CreditCard className="size-3.5 text-emerald-600" />
+            <span>Record Payment</span>
+          </button>
+        )}
+
+        <div className="border-t border-slate-100 my-1" />
+
+        <button
+          type="button"
+          onClick={() => {
+            onDeleteInvoice(invoice.id);
+            onClose();
+          }}
+          className="w-full px-3 py-2 hover:bg-rose-50 text-rose-600 flex items-center gap-2 text-left cursor-pointer"
+        >
+          <Trash2 className="size-3.5" />
+          <span>Delete Invoice</span>
+        </button>
+      </RowActionDropdown>
+    </td>
   );
 }

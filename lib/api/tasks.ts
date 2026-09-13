@@ -1,3 +1,4 @@
+import { get, post, patch, del } from "@/lib/api";
 import {
   TaskItem,
   SubTaskItem,
@@ -16,92 +17,37 @@ export interface TasksApiResponse {
 }
 
 export async function fetchTasks(): Promise<TasksApiResponse> {
-  const res = await fetch("/api/tasks", {
-    method: "GET",
-    headers: { "Content-Type": "application/json" },
-    cache: "no-store",
-  });
-
-  if (!res.ok) {
-    throw new Error(`Failed to fetch tasks: ${res.statusText}`);
-  }
-
-  return res.json();
+  return get<TasksApiResponse>("/api/tasks", { cache: "no-store" });
 }
 
 export async function createTask(formData: TaskFormData): Promise<TaskItem> {
-  const res = await fetch("/api/tasks", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(formData),
-  });
-
-  if (!res.ok) {
-    const errorData = await res.json().catch(() => ({}));
-    throw new Error(errorData.error || "Failed to create task");
-  }
-
-  const data = await res.json();
+  const data = await post<{ task: TaskItem }>("/api/tasks", formData);
   return data.task;
 }
 
 export async function updateTask(id: string, updates: Partial<TaskItem>): Promise<TaskItem> {
-  const res = await fetch(`/api/tasks/${id}`, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(updates),
-  });
-
-  if (!res.ok) {
-    const errorData = await res.json().catch(() => ({}));
-    throw new Error(errorData.error || "Failed to update task");
-  }
-
-  const data = await res.json();
+  const data = await patch<{ task: TaskItem }>(`/api/tasks/${id}`, updates);
   return data.task;
 }
 
 export async function deleteTask(id: string): Promise<boolean> {
-  const res = await fetch(`/api/tasks/${id}`, {
-    method: "DELETE",
-    headers: { "Content-Type": "application/json" },
-  });
-
-  if (!res.ok) {
-    const errorData = await res.json().catch(() => ({}));
-    throw new Error(errorData.error || "Failed to delete task");
-  }
-
+  await del(`/api/tasks/${id}`);
   return true;
 }
 
 export async function fetchActivities(): Promise<TaskActivityItem[]> {
-  const res = await fetch("/api/tasks/activities", {
-    method: "GET",
-    headers: { "Content-Type": "application/json" },
-    cache: "no-store",
-  });
-
-  if (!res.ok) {
-    throw new Error(`Failed to fetch activities: ${res.statusText}`);
+  try {
+    const data = await get<{ activities: TaskActivityItem[] }>("/api/tasks/activities", {
+      cache: "no-store",
+    });
+    return data.activities || [];
+  } catch (error) {
+    console.error("Error fetching activities:", error);
+    return [];
   }
-
-  const data = await res.json();
-  return data.activities || [];
 }
 
 export async function toggleSubtask(id: string, isCompleted: boolean): Promise<SubTaskItem> {
-  const res = await fetch("/api/tasks/subtasks", {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ id, isCompleted }),
-  });
-
-  if (!res.ok) {
-    const errorData = await res.json().catch(() => ({}));
-    throw new Error(errorData.error || "Failed to update subtask");
-  }
-
-  const data = await res.json();
+  const data = await patch<{ subtask: SubTaskItem }>("/api/tasks/subtasks", { id, isCompleted });
   return data.subtask;
 }

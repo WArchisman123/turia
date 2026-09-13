@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useRef } from "react";
 import {
   TaskItem,
   TaskKpiData,
@@ -32,6 +32,7 @@ import {
   TableActiveModifiers,
   TablePagination,
   TableEmptyState,
+  RowActionDropdown,
 } from "@/components/ui/data-table";
 import { TaskFilterDrawer } from "./task-filter-drawer";
 
@@ -90,16 +91,6 @@ export function TaskListTab({
   const [columnFilters, setColumnFilters] = useState<Record<string, string>>({});
   const [hiddenColumnKeys, setHiddenColumnKeys] = useState<string[]>([]);
 
-  // Close row action menu on outside click
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (!(event.target as HTMLElement).closest(".row-action-menu-container")) {
-        setActiveRowMenuId(null);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
 
   // Filter and sort items
   const processedTasks = useMemo(() => {
@@ -677,58 +668,18 @@ export function TaskListTab({
                       })}
 
                       {/* Row Actions 3-dot Menu */}
-                      <td className="py-3 px-4 text-right">
-                        <div className="row-action-menu-container relative inline-block text-left">
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setActiveRowMenuId(activeRowMenuId === task.id ? null : task.id)
-                            }
-                            className="p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
-                          >
-                            <MoreVertical className="size-4" />
-                          </button>
-
-                          {activeRowMenuId === task.id && (
-                            <div className="absolute right-0 top-8 w-44 bg-white rounded-xl shadow-xl border border-slate-200 py-1.5 z-20 animate-in fade-in zoom-in-95 duration-100 text-xs text-slate-700">
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  onUpdateTaskStatus?.(task.id, "completed");
-                                  setActiveRowMenuId(null);
-                                }}
-                                className="w-full px-3.5 py-2 hover:bg-slate-50 flex items-center gap-2 text-left font-medium cursor-pointer"
-                              >
-                                <Check className="size-3.5 text-emerald-600" />
-                                <span>Mark Completed</span>
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  onUpdateTaskStatus?.(task.id, "in_progress");
-                                  setActiveRowMenuId(null);
-                                }}
-                                className="w-full px-3.5 py-2 hover:bg-slate-50 flex items-center gap-2 text-left font-medium cursor-pointer"
-                              >
-                                <RotateCw className="size-3.5 text-indigo-600" />
-                                <span>Set In Progress</span>
-                              </button>
-                              <div className="border-t border-slate-100 my-1" />
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  onDeleteTask?.(task.id);
-                                  setActiveRowMenuId(null);
-                                }}
-                                className="w-full px-3.5 py-2 hover:bg-rose-50 text-rose-600 flex items-center gap-2 text-left font-medium cursor-pointer"
-                              >
-                                <Trash2 className="size-3.5" />
-                                <span>Delete Task</span>
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      </td>
+                      <TaskRowActionCell
+                        task={task}
+                        isOpen={activeRowMenuId === task.id}
+                        onToggle={() =>
+                          setActiveRowMenuId(
+                            activeRowMenuId === task.id ? null : task.id
+                          )
+                        }
+                        onClose={() => setActiveRowMenuId(null)}
+                        onUpdateTaskStatus={onUpdateTaskStatus}
+                        onDeleteTask={onDeleteTask}
+                      />
                     </tr>
                   );
                 })
@@ -763,5 +714,88 @@ export function TaskListTab({
         onClearAll={handleResetAll}
       />
     </div>
+  );
+}
+
+interface TaskRowActionCellProps {
+  task: TaskItem;
+  isOpen: boolean;
+  onToggle: () => void;
+  onClose: () => void;
+  onUpdateTaskStatus?: (id: string, newStatus: TaskItem["status"]) => void;
+  onDeleteTask?: (id: string) => void;
+}
+
+function TaskRowActionCell({
+  task,
+  isOpen,
+  onToggle,
+  onClose,
+  onUpdateTaskStatus,
+  onDeleteTask,
+}: TaskRowActionCellProps) {
+  const triggerRef = useRef<HTMLButtonElement>(null);
+
+  return (
+    <td className="py-3 px-4 text-right">
+      <button
+        ref={triggerRef}
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          onToggle();
+        }}
+        className={`p-1 rounded-lg transition-colors cursor-pointer ${
+          isOpen
+            ? "text-slate-900 bg-slate-100"
+            : "text-slate-400 hover:text-slate-700 hover:bg-slate-100"
+        }`}
+        title="Task options"
+      >
+        <MoreVertical className="size-4" />
+      </button>
+
+      <RowActionDropdown
+        isOpen={isOpen}
+        onClose={onClose}
+        triggerRef={triggerRef}
+        width={176}
+      >
+        <button
+          type="button"
+          onClick={() => {
+            onUpdateTaskStatus?.(task.id, "completed");
+            onClose();
+          }}
+          className="w-full px-3.5 py-2 hover:bg-slate-50 flex items-center gap-2 text-left font-medium cursor-pointer"
+        >
+          <Check className="size-3.5 text-emerald-600" />
+          <span>Mark Completed</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            onUpdateTaskStatus?.(task.id, "in_progress");
+            onClose();
+          }}
+          className="w-full px-3.5 py-2 hover:bg-slate-50 flex items-center gap-2 text-left font-medium cursor-pointer"
+        >
+          <RotateCw className="size-3.5 text-indigo-600" />
+          <span>Set In Progress</span>
+        </button>
+        <div className="border-t border-slate-100 my-1" />
+        <button
+          type="button"
+          onClick={() => {
+            onDeleteTask?.(task.id);
+            onClose();
+          }}
+          className="w-full px-3.5 py-2 hover:bg-rose-50 text-rose-600 flex items-center gap-2 text-left font-medium cursor-pointer"
+        >
+          <Trash2 className="size-3.5" />
+          <span>Delete Task</span>
+        </button>
+      </RowActionDropdown>
+    </td>
   );
 }

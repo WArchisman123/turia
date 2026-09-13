@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useRef } from "react";
 import {
   UserCheck,
   UserX,
@@ -14,6 +14,7 @@ import {
   Eye,
 } from "lucide-react";
 import { TeamMember, TeamKPIData } from "./types";
+import { RowActionDropdown } from "@/components/ui/data-table";
 
 interface TeamDirectoryTabProps {
   members: TeamMember[];
@@ -390,48 +391,18 @@ export function TeamDirectoryTab({
                         </span>
                       )}
                     </td>
-                    <td className="py-3 px-3 text-center">
-                      <div className="relative inline-block">
-                        <button
-                          onClick={() =>
-                            setActiveMenuId(
-                              activeMenuId === member.id ? null : member.id
-                            )
-                          }
-                          aria-label={`Actions for ${member.full_name}`}
-                          className="size-7 rounded hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-700 transition-colors"
-                        >
-                          <MoreVertical className="size-3.5" />
-                        </button>
-
-                        {activeMenuId === member.id && (
-                          <div className="absolute right-0 top-8 z-30 w-44 bg-white border border-[#E2E8F0] rounded-lg shadow-lg py-1 text-xs text-slate-700">
-                            {onViewUser && (
-                              <button
-                                onClick={() => {
-                                  onViewUser(member);
-                                  setActiveMenuId(null);
-                                }}
-                                className="w-full px-3 py-1.5 text-left text-slate-700 hover:bg-slate-50 flex items-center gap-2 cursor-pointer"
-                              >
-                                <Eye className="size-3.5 text-slate-400" />
-                                View Details
-                              </button>
-                            )}
-                            <button
-                              onClick={() => {
-                                onDeactivateUser(member.id);
-                                setActiveMenuId(null);
-                              }}
-                              className="w-full px-3 py-1.5 text-left text-rose-600 hover:bg-rose-50 flex items-center gap-2 cursor-pointer"
-                            >
-                              <Trash2 className="size-3.5 text-rose-500" />
-                              Deactivate
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    </td>
+                    <TeamRowActionCell
+                      member={member}
+                      isOpen={activeMenuId === member.id}
+                      onToggle={() =>
+                        setActiveMenuId(
+                          activeMenuId === member.id ? null : member.id
+                        )
+                      }
+                      onClose={() => setActiveMenuId(null)}
+                      onViewUser={onViewUser}
+                      onDeactivateUser={onDeactivateUser}
+                    />
                   </tr>
                 ))
               )}
@@ -451,5 +422,75 @@ export function TeamDirectoryTab({
         </div>
       </div>
     </div>
+  );
+}
+
+interface TeamRowActionCellProps {
+  member: TeamMember;
+  isOpen: boolean;
+  onToggle: () => void;
+  onClose: () => void;
+  onViewUser?: (member: TeamMember) => void;
+  onDeactivateUser: (id: string) => void;
+}
+
+function TeamRowActionCell({
+  member,
+  isOpen,
+  onToggle,
+  onClose,
+  onViewUser,
+  onDeactivateUser,
+}: TeamRowActionCellProps) {
+  const triggerRef = useRef<HTMLButtonElement>(null);
+
+  return (
+    <td className="py-3 px-3 text-center">
+      <button
+        ref={triggerRef}
+        onClick={(e) => {
+          e.stopPropagation();
+          onToggle();
+        }}
+        aria-label={`Actions for ${member.full_name}`}
+        className={`size-7 rounded transition-colors cursor-pointer inline-flex items-center justify-center ${
+          isOpen
+            ? "text-slate-900 bg-slate-100"
+            : "text-slate-400 hover:text-slate-700 hover:bg-slate-100"
+        }`}
+      >
+        <MoreVertical className="size-3.5" />
+      </button>
+
+      <RowActionDropdown
+        isOpen={isOpen}
+        onClose={onClose}
+        triggerRef={triggerRef}
+        width={176}
+      >
+        {onViewUser && (
+          <button
+            onClick={() => {
+              onViewUser(member);
+              onClose();
+            }}
+            className="w-full px-3 py-1.5 text-left text-slate-700 hover:bg-slate-50 flex items-center gap-2 cursor-pointer"
+          >
+            <Eye className="size-3.5 text-slate-400" />
+            <span>View Details</span>
+          </button>
+        )}
+        <button
+          onClick={() => {
+            onDeactivateUser(member.id);
+            onClose();
+          }}
+          className="w-full px-3 py-1.5 text-left text-rose-600 hover:bg-rose-50 flex items-center gap-2 cursor-pointer"
+        >
+          <Trash2 className="size-3.5 text-rose-500" />
+          <span>Deactivate</span>
+        </button>
+      </RowActionDropdown>
+    </td>
   );
 }

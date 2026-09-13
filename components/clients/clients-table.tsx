@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useMemo, useRef } from "react";
 import {
   MoreVertical,
   Eye,
@@ -20,6 +20,7 @@ import {
   TableActiveModifiers,
   TablePagination,
   TableEmptyState,
+  RowActionDropdown,
 } from "@/components/ui/data-table";
 
 interface ClientsTableProps {
@@ -63,16 +64,6 @@ export function ClientsTable({
   const [columnFilters, setColumnFilters] = useState<Record<string, string>>({});
   const [hiddenColumnKeys, setHiddenColumnKeys] = useState<string[]>([]);
 
-  // Close row action menu on outside click
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (!(event.target as HTMLElement).closest(".row-action-menu-container")) {
-        setActiveRowMenuId(null);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
 
   const handleSelectAll = () => {
     if (selectedIds.length === clients.length) {
@@ -495,84 +486,21 @@ export function ClientsTable({
                     })}
 
                     {/* Actions Menu */}
-                    <td className="py-3 px-4 w-12 text-right relative row-action-menu-container">
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setActiveRowMenuId(
-                            activeRowMenuId === client.id ? null : client.id
-                          );
-                        }}
-                        className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
-                      >
-                        <MoreVertical className="size-4" />
-                      </button>
-
-                      {activeRowMenuId === client.id && (
-                        <div className="absolute right-4 top-10 w-44 bg-white rounded-xl shadow-xl border border-slate-200 py-1.5 z-30 animate-in fade-in zoom-in-95 duration-100 text-left">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              onSelectClient?.(client);
-                              setActiveRowMenuId(null);
-                            }}
-                            className="w-full px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-50 flex items-center gap-2 font-medium cursor-pointer"
-                          >
-                            <Eye className="size-3.5 text-indigo-600" />
-                            <span>View 360 Details</span>
-                          </button>
-                          {onEditClient && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                onEditClient(client);
-                                setActiveRowMenuId(null);
-                              }}
-                              className="w-full px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-50 flex items-center gap-2 font-medium cursor-pointer"
-                            >
-                              <Edit2 className="size-3.5 text-slate-600" />
-                              <span>Edit Client</span>
-                            </button>
-                          )}
-                          {onToggleStatus && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                onToggleStatus(
-                                  client.id,
-                                  isActive ? "inactive" : "active"
-                                );
-                                setActiveRowMenuId(null);
-                              }}
-                              className="w-full px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-50 flex items-center gap-2 font-medium cursor-pointer"
-                            >
-                              <Repeat className="size-3.5 text-slate-600" />
-                              <span>{isActive ? "Deactivate" : "Activate"}</span>
-                            </button>
-                          )}
-                          {onDeleteClient && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                if (
-                                  confirm(
-                                    `Are you sure you want to delete ${client.tradeName}?`
-                                  )
-                                ) {
-                                  onDeleteClient(client.id);
-                                }
-                                setActiveRowMenuId(null);
-                              }}
-                              className="w-full px-3 py-1.5 text-xs text-rose-600 hover:bg-rose-50 flex items-center gap-2 font-medium cursor-pointer"
-                            >
-                              <Trash2 className="size-3.5 text-rose-600" />
-                              <span>Delete Client</span>
-                            </button>
-                          )}
-                        </div>
-                      )}
-                    </td>
+                    <ClientRowActionCell
+                      client={client}
+                      isActive={isActive}
+                      isOpen={activeRowMenuId === client.id}
+                      onToggle={() =>
+                        setActiveRowMenuId(
+                          activeRowMenuId === client.id ? null : client.id
+                        )
+                      }
+                      onClose={() => setActiveRowMenuId(null)}
+                      onSelectClient={onSelectClient}
+                      onEditClient={onEditClient}
+                      onToggleStatus={onToggleStatus}
+                      onDeleteClient={onDeleteClient}
+                    />
                   </tr>
                 );
               })
@@ -598,5 +526,119 @@ export function ClientsTable({
         rowsPerPageOptions={[20, 50, 100]}
       />
     </div>
+  );
+}
+
+interface ClientRowActionCellProps {
+  client: ClientItem;
+  isActive: boolean;
+  isOpen: boolean;
+  onToggle: () => void;
+  onClose: () => void;
+  onSelectClient?: (client: ClientItem) => void;
+  onEditClient?: (client: ClientItem) => void;
+  onToggleStatus?: (id: string, newStatus: "active" | "inactive") => void;
+  onDeleteClient?: (id: string) => void;
+}
+
+function ClientRowActionCell({
+  client,
+  isActive,
+  isOpen,
+  onToggle,
+  onClose,
+  onSelectClient,
+  onEditClient,
+  onToggleStatus,
+  onDeleteClient,
+}: ClientRowActionCellProps) {
+  const triggerRef = useRef<HTMLButtonElement>(null);
+
+  return (
+    <td className="py-3 px-4 w-12 text-right">
+      <button
+        ref={triggerRef}
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          onToggle();
+        }}
+        className={`p-1 rounded-lg transition-colors cursor-pointer ${
+          isOpen
+            ? "text-slate-900 bg-slate-100"
+            : "text-slate-400 hover:text-slate-600 hover:bg-slate-100"
+        }`}
+        title="Client actions"
+      >
+        <MoreVertical className="size-4" />
+      </button>
+
+      <RowActionDropdown
+        isOpen={isOpen}
+        onClose={onClose}
+        triggerRef={triggerRef}
+        width={176}
+      >
+        <button
+          type="button"
+          onClick={() => {
+            onSelectClient?.(client);
+            onClose();
+          }}
+          className="w-full px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-50 flex items-center gap-2 font-medium cursor-pointer"
+        >
+          <Eye className="size-3.5 text-indigo-600" />
+          <span>View 360 Details</span>
+        </button>
+
+        {onEditClient && (
+          <button
+            type="button"
+            onClick={() => {
+              onEditClient(client);
+              onClose();
+            }}
+            className="w-full px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-50 flex items-center gap-2 font-medium cursor-pointer"
+          >
+            <Edit2 className="size-3.5 text-slate-600" />
+            <span>Edit Client</span>
+          </button>
+        )}
+
+        {onToggleStatus && (
+          <button
+            type="button"
+            onClick={() => {
+              onToggleStatus(client.id, isActive ? "inactive" : "active");
+              onClose();
+            }}
+            className="w-full px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-50 flex items-center gap-2 font-medium cursor-pointer"
+          >
+            <Repeat className="size-3.5 text-slate-600" />
+            <span>{isActive ? "Deactivate" : "Activate"}</span>
+          </button>
+        )}
+
+        {onDeleteClient && (
+          <button
+            type="button"
+            onClick={() => {
+              if (
+                confirm(
+                  `Are you sure you want to delete ${client.tradeName}?`
+                )
+              ) {
+                onDeleteClient(client.id);
+              }
+              onClose();
+            }}
+            className="w-full px-3 py-1.5 text-xs text-rose-600 hover:bg-rose-50 flex items-center gap-2 font-medium cursor-pointer"
+          >
+            <Trash2 className="size-3.5 text-rose-600" />
+            <span>Delete Client</span>
+          </button>
+        )}
+      </RowActionDropdown>
+    </td>
   );
 }

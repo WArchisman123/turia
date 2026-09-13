@@ -1,3 +1,4 @@
+import { get, post, patch, del } from "@/lib/api";
 import { RoleSlug, ModuleSlug, ModulePermissionMap } from "@/lib/rbac/types";
 import { LeaveApplicationItem } from "@/components/profile/apply-leave-modal";
 import { PersonalReimbursementItem } from "@/components/profile/apply-reimbursement-modal";
@@ -67,9 +68,7 @@ export interface ProfileDetailsResponse {
 // 1. Profile Details & Attendance Matrix
 export async function fetchProfileDetails(): Promise<ProfileDetailsResponse | null> {
   try {
-    const res = await fetch("/api/profile", { method: "GET" });
-    if (!res.ok) return null;
-    return await res.json();
+    return await get<ProfileDetailsResponse>("/api/profile");
   } catch (err) {
     console.error("fetchProfileDetails error:", err);
     return null;
@@ -78,12 +77,8 @@ export async function fetchProfileDetails(): Promise<ProfileDetailsResponse | nu
 
 export async function updateProfileDetails(data: Partial<PractitionerProfile>): Promise<boolean> {
   try {
-    const res = await fetch("/api/profile", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
-    });
-    return res.ok;
+    await patch("/api/profile", data);
+    return true;
   } catch (err) {
     console.error("updateProfileDetails error:", err);
     return false;
@@ -98,9 +93,12 @@ export async function fetchReimbursements(): Promise<{
   pendingAmount: number;
 }> {
   try {
-    const res = await fetch("/api/profile/reimbursements", { method: "GET" });
-    if (!res.ok) return { claims: [], totalAmount: 0, settledAmount: 0, pendingAmount: 0 };
-    return await res.json();
+    return await get<{
+      claims: PersonalReimbursementItem[];
+      totalAmount: number;
+      settledAmount: number;
+      pendingAmount: number;
+    }>("/api/profile/reimbursements");
   } catch (err) {
     console.error("fetchReimbursements error:", err);
     return { claims: [], totalAmount: 0, settledAmount: 0, pendingAmount: 0 };
@@ -116,13 +114,7 @@ export async function createReimbursement(claim: {
   attachmentName?: string;
 }): Promise<PersonalReimbursementItem | null> {
   try {
-    const res = await fetch("/api/profile/reimbursements", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(claim),
-    });
-    if (!res.ok) return null;
-    const data = await res.json();
+    const data = await post<{ claim: PersonalReimbursementItem }>("/api/profile/reimbursements", claim);
     return data.claim;
   } catch (err) {
     console.error("createReimbursement error:", err);
@@ -136,9 +128,10 @@ export async function fetchLeaves(): Promise<{
   balance: ProfileDetailsResponse["leaveBalance"];
 }> {
   try {
-    const res = await fetch("/api/profile/leaves", { method: "GET" });
-    if (!res.ok) return { leaves: [], balance: null };
-    return await res.json();
+    return await get<{
+      leaves: LeaveApplicationItem[];
+      balance: ProfileDetailsResponse["leaveBalance"];
+    }>("/api/profile/leaves");
   } catch (err) {
     console.error("fetchLeaves error:", err);
     return { leaves: [], balance: null };
@@ -153,13 +146,7 @@ export async function createLeave(leave: {
   reason: string;
 }): Promise<LeaveApplicationItem | null> {
   try {
-    const res = await fetch("/api/profile/leaves", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(leave),
-    });
-    if (!res.ok) return null;
-    const data = await res.json();
+    const data = await post<{ leave: LeaveApplicationItem }>("/api/profile/leaves", leave);
     return data.leave;
   } catch (err) {
     console.error("createLeave error:", err);
@@ -170,9 +157,7 @@ export async function createLeave(leave: {
 // 4. Assigned Tasks
 export async function fetchAssignedTasks(): Promise<AssignedTaskItem[]> {
   try {
-    const res = await fetch("/api/profile/tasks", { method: "GET" });
-    if (!res.ok) return [];
-    const data = await res.json();
+    const data = await get<{ tasks: AssignedTaskItem[] }>("/api/profile/tasks");
     return data.tasks || [];
   } catch (err) {
     console.error("fetchAssignedTasks error:", err);
@@ -182,12 +167,8 @@ export async function fetchAssignedTasks(): Promise<AssignedTaskItem[]> {
 
 export async function reassignTasks(taskIds: string[], newAssigneeId: string): Promise<boolean> {
   try {
-    const res = await fetch("/api/profile/tasks", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ taskIds, newAssigneeId }),
-    });
-    return res.ok;
+    await patch("/api/profile/tasks", { taskIds, newAssigneeId });
+    return true;
   } catch (err) {
     console.error("reassignTasks error:", err);
     return false;
@@ -197,9 +178,7 @@ export async function reassignTasks(taskIds: string[], newAssigneeId: string): P
 // 5. Assigned Clients
 export async function fetchAssignedClients(): Promise<AssignedClientItem[]> {
   try {
-    const res = await fetch("/api/profile/clients", { method: "GET" });
-    if (!res.ok) return [];
-    const data = await res.json();
+    const data = await get<{ clients: AssignedClientItem[] }>("/api/profile/clients");
     return data.clients || [];
   } catch (err) {
     console.error("fetchAssignedClients error:", err);
@@ -209,12 +188,8 @@ export async function fetchAssignedClients(): Promise<AssignedClientItem[]> {
 
 export async function reassignClients(clientIds: string[], newAssigneeId: string): Promise<boolean> {
   try {
-    const res = await fetch("/api/profile/clients", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ clientIds, newAssigneeId }),
-    });
-    return res.ok;
+    await patch("/api/profile/clients", { clientIds, newAssigneeId });
+    return true;
   } catch (err) {
     console.error("reassignClients error:", err);
     return false;
@@ -224,9 +199,7 @@ export async function reassignClients(clientIds: string[], newAssigneeId: string
 // 6. Documents Vault
 export async function fetchDocuments(): Promise<EmployeeKYCDocument[]> {
   try {
-    const res = await fetch("/api/profile/documents", { method: "GET" });
-    if (!res.ok) return [];
-    const data = await res.json();
+    const data = await get<{ documents: EmployeeKYCDocument[] }>("/api/profile/documents");
     return data.documents || [];
   } catch (err) {
     console.error("fetchDocuments error:", err);
@@ -241,13 +214,7 @@ export async function uploadDocument(doc: {
   fileSize: string;
 }): Promise<EmployeeKYCDocument | null> {
   try {
-    const res = await fetch("/api/profile/documents", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(doc),
-    });
-    if (!res.ok) return null;
-    const data = await res.json();
+    const data = await post<{ document: EmployeeKYCDocument }>("/api/profile/documents", doc);
     return data.document;
   } catch (err) {
     console.error("uploadDocument error:", err);
@@ -257,10 +224,8 @@ export async function uploadDocument(doc: {
 
 export async function deleteDocument(id: string): Promise<boolean> {
   try {
-    const res = await fetch(`/api/profile/documents?id=${encodeURIComponent(id)}`, {
-      method: "DELETE",
-    });
-    return res.ok;
+    await del(`/api/profile/documents`, { params: { id } });
+    return true;
   } catch (err) {
     console.error("deleteDocument error:", err);
     return false;
@@ -270,11 +235,9 @@ export async function deleteDocument(id: string): Promise<boolean> {
 // 7. Permissions Matrix
 export async function fetchPermissions(role: RoleSlug): Promise<SingleRolePermissions | null> {
   try {
-    const res = await fetch(`/api/profile/permissions?role=${encodeURIComponent(role)}`, {
-      method: "GET",
+    const data = await get<{ permissions: SingleRolePermissions }>("/api/profile/permissions", {
+      params: { role },
     });
-    if (!res.ok) return null;
-    const data = await res.json();
     return data.permissions;
   } catch (err) {
     console.error("fetchPermissions error:", err);
@@ -284,12 +247,8 @@ export async function fetchPermissions(role: RoleSlug): Promise<SingleRolePermis
 
 export async function savePermissions(permissions: SingleRolePermissions): Promise<boolean> {
   try {
-    const res = await fetch("/api/profile/permissions", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ permissions }),
-    });
-    return res.ok;
+    await patch("/api/profile/permissions", { permissions });
+    return true;
   } catch (err) {
     console.error("savePermissions error:", err);
     return false;
@@ -313,9 +272,7 @@ export interface OrgTreeNode {
 
 export async function fetchOrgTree(): Promise<OrgTreeNode | null> {
   try {
-    const res = await fetch("/api/profile/org-tree", { method: "GET" });
-    if (!res.ok) return null;
-    const data = await res.json();
+    const data = await get<{ tree: OrgTreeNode }>("/api/profile/org-tree");
     return data.tree;
   } catch (err) {
     console.error("fetchOrgTree error:", err);

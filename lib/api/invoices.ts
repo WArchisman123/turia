@@ -1,3 +1,4 @@
+import { get, post, patch, del } from "@/lib/api";
 import {
   Invoice,
   ClientReimbursement,
@@ -38,81 +39,28 @@ export interface InvoicesApiResponse {
 }
 
 export async function fetchInvoices(): Promise<InvoicesApiResponse> {
-  const res = await fetch("/api/invoices", {
-    method: "GET",
-    headers: { "Content-Type": "application/json" },
-    cache: "no-store",
-  });
-
-  if (!res.ok) {
-    throw new Error(`Failed to fetch invoices: ${res.statusText}`);
-  }
-
-  return res.json();
+  return get<InvoicesApiResponse>("/api/invoices", { cache: "no-store" });
 }
 
 export async function createInvoice(invoiceData: Partial<Invoice>): Promise<Invoice> {
-  const res = await fetch("/api/invoices", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(invoiceData),
-  });
-
-  if (!res.ok) {
-    const errorData = await res.json().catch(() => ({}));
-    throw new Error(errorData.error || "Failed to create invoice");
-  }
-
-  const data = await res.json();
+  const data = await post<{ invoice: Invoice }>("/api/invoices", invoiceData);
   return data.invoice;
 }
 
 export async function convertProformaToTaxInvoice(proformaId: string): Promise<Invoice> {
-  const res = await fetch(`/api/invoices/${proformaId}`, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ action: "convert_to_tax_invoice" }),
+  const data = await patch<{ invoice: Invoice }>(`/api/invoices/${proformaId}`, {
+    action: "convert_to_tax_invoice",
   });
-
-  if (!res.ok) {
-    const errorData = await res.json().catch(() => ({}));
-    throw new Error(errorData.error || "Failed to convert proforma invoice");
-  }
-
-  const data = await res.json();
   return data.invoice;
 }
 
-export async function updateInvoiceStatus(
-  id: string,
-  status: string
-): Promise<Invoice> {
-  const res = await fetch(`/api/invoices/${id}`, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ status }),
-  });
-
-  if (!res.ok) {
-    const errorData = await res.json().catch(() => ({}));
-    throw new Error(errorData.error || "Failed to update invoice");
-  }
-
-  const data = await res.json();
+export async function updateInvoiceStatus(id: string, status: string): Promise<Invoice> {
+  const data = await patch<{ invoice: Invoice }>(`/api/invoices/${id}`, { status });
   return data.invoice;
 }
 
 export async function deleteInvoice(id: string): Promise<boolean> {
-  const res = await fetch(`/api/invoices/${id}`, {
-    method: "DELETE",
-    headers: { "Content-Type": "application/json" },
-  });
-
-  if (!res.ok) {
-    const errorData = await res.json().catch(() => ({}));
-    throw new Error(errorData.error || "Failed to delete invoice");
-  }
-
+  await del(`/api/invoices/${id}`);
   return true;
 }
 
@@ -127,32 +75,14 @@ export async function recordPayment(receiptData: {
   receiptDate: string;
   notes?: string;
 }): Promise<PaymentReceipt> {
-  const res = await fetch("/api/invoices/receipts", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(receiptData),
-  });
-
-  if (!res.ok) {
-    const errorData = await res.json().catch(() => ({}));
-    throw new Error(errorData.error || "Failed to record payment receipt");
-  }
-
-  const data = await res.json();
+  const data = await post<{ receipt: PaymentReceipt }>("/api/invoices/receipts", receiptData);
   return data.receipt;
 }
 
 export async function toggleRecurringRetainer(id: string, isActive: boolean): Promise<boolean> {
-  const res = await fetch(`/api/invoices/${id}`, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ action: "toggle_recurring", isActive }),
+  await patch(`/api/invoices/${id}`, {
+    action: "toggle_recurring",
+    isActive,
   });
-
-  if (!res.ok) {
-    const errorData = await res.json().catch(() => ({}));
-    throw new Error(errorData.error || "Failed to toggle recurring retainer");
-  }
-
   return true;
 }

@@ -40,9 +40,9 @@ export async function getTenantContext(): Promise<TenantContext | null> {
 
   const supabase = createAdminClient();
 
-  // If user has an active organization in Clerk
+  // 1. If user has an active organization in Clerk
   if (orgId) {
-    // Check if firm exists
+    // Check if firm exists for this Clerk organization
     let { data: firm } = await supabase
       .from("firms")
       .select("id, brand_name")
@@ -108,12 +108,115 @@ export async function getTenantContext(): Promise<TenantContext | null> {
     }
   }
 
-  return {
-    userId,
-    orgId: null,
-    firmId: null,
-    role: "admin",
-    email,
-    fullName,
-  };
+  // 2. If orgId is null (User logged into personal account without active Clerk org selection)
+  // Check if this user is already linked to a firm via firm_users
+  try {
+    const { data: existingMembership } = await supabase
+      .from("firm_users")
+      .select("id, role, firm_id")
+      .eq("clerk_user_id", userId)
+      .order("created_at", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+
+    if (existingMembership?.firm_id) {
+      return {
+        userId,
+        orgId: null,
+        firmId: existingMembership.firm_id,
+        role: (existingMembership.role as UserRole) || "admin",
+        email,
+        fullName,
+      };
+    }
+
+    // Check if a personal firm was already created for this user
+    const personalOrgId = `personal_${userId}`;
+    let { data: personalFirm } = await supabase
+      .from("firms")
+      .select("id, brand_name")
+      .eq("clerk_org_id", personalOrgId)
+      .maybeSingle();
+
+    // If still not found, check if ANY firm exists in the database (e.g. primary firm created during initial setup)
+    if (!personalFirm) {
+      const { data: anyFirm } = await supabase
+        .from("firms")
+        .select("id, brand_name")
+        .order("created_at", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+
+      if (anyFirm) {
+        personalFirm = anyFirm;
+      }
+    }
+
+    // If still no firm in database, attempt to auto-provision one
+    if (!personalFirm) {
+      const { data: newPersonalFirm } = await supabase
+        .from("firms")
+        .insert({
+          clerk_org_id: personalOrgId,
+          brand_name: "Saha & Associates, Chartered Accountants",
+          legal_name: "Saha & Associates LLP",
+          business_entity: "Partnership Firm",
+          city: "Kolkata",
+          state: "West Bengal",
+          country: "India",
+          onboarding_step: 1,
+          onboarding_completed: false,
+        })
+        .select("id, brand_name")
+        .maybeSingle();
+
+      if (newPersonalFirm) {
+        personalFirm = newPersonalFirm;
+      }
+    }
+
+    // Fallback deterministic firm UUID if database insert failed
+    const resolvedFirmId = personalFirm?.id || "00000000-0000-0000-0000-000000000001";
+
+    // Attempt to register firm_user relationship
+    try {
+      await supabase.from("firm_users").upsert(
+        {
+          firm_id: resolvedFirmId,
+          clerk_user_id: userId,
+          first_name: user?.firstName || "CA",
+          last_name: user?.lastName || "Practitioner",
+          full_name: fullName,
+          email: email,
+          role: "admin",
+          designation: "Managing Partner",
+          department: "Direct Tax",
+          cost_per_hour: 500,
+          billing_rate: 2500,
+        },
+        { onConflict: "firm_id, clerk_user_id" }
+      );
+    } catch {
+      // ignore upsert errors during fallback
+    }
+
+    return {
+      userId,
+      orgId: null,
+      firmId: resolvedFirmId,
+      role: "admin",
+      email,
+      fullName,
+    };
+  } catch (err) {
+    console.warn("Tenant resolution fallback in getTenantContext:", err);
+    return {
+      userId,
+      orgId: null,
+      firmId: "00000000-0000-0000-0000-000000000001",
+      role: "admin",
+      email,
+      fullName,
+    };
+  }
 }

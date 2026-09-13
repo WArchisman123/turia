@@ -1,3 +1,4 @@
+import { get, post } from "@/lib/api";
 import { TimeEntryItem } from "@/components/home/add-time-entry-modal";
 
 export interface SalesSummaryResponse {
@@ -37,11 +38,7 @@ export interface SeedResult {
 
 export async function triggerSeedDatabase(): Promise<SeedResult> {
   try {
-    const res = await fetch("/api/seed", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-    });
-    return await res.json();
+    return await post<SeedResult>("/api/seed");
   } catch (error) {
     console.error("Error triggering database seed:", error);
     return { success: false, message: "Network error during seeding" };
@@ -53,17 +50,12 @@ export async function punchAttendance(
   workLocation = "At Office"
 ): Promise<{ success: boolean; timestamp?: string }> {
   try {
-    const res = await fetch("/api/attendance/punch", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        action,
-        workLocation,
-        inGeoCoords: "19.0760° N, 72.8777° E",
-        distanceMeters: 18,
-      }),
+    return await post<{ success: boolean; timestamp?: string }>("/api/attendance/punch", {
+      action,
+      workLocation,
+      inGeoCoords: "19.0760° N, 72.8777° E",
+      distanceMeters: 18,
     });
-    return await res.json();
   } catch (error) {
     console.error("Error punching attendance:", error);
     return { success: false };
@@ -72,9 +64,7 @@ export async function punchAttendance(
 
 export async function fetchTimesheet(): Promise<TimeEntryItem[]> {
   try {
-    const res = await fetch("/api/timesheet", { cache: "no-store" });
-    if (!res.ok) return [];
-    const data = await res.json();
+    const data = await get<{ entries: TimeEntryItem[] }>("/api/timesheet", { cache: "no-store" });
     return data.entries || [];
   } catch (error) {
     console.error("Error fetching timesheet:", error);
@@ -84,13 +74,7 @@ export async function fetchTimesheet(): Promise<TimeEntryItem[]> {
 
 export async function saveTimesheetEntry(entry: Partial<TimeEntryItem>): Promise<TimeEntryItem | null> {
   try {
-    const res = await fetch("/api/timesheet", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(entry),
-    });
-    if (!res.ok) return null;
-    const data = await res.json();
+    const data = await post<{ entry: TimeEntryItem }>("/api/timesheet", entry);
     return data.entry || null;
   } catch (error) {
     console.error("Error saving timesheet entry:", error);
@@ -100,9 +84,9 @@ export async function saveTimesheetEntry(entry: Partial<TimeEntryItem>): Promise
 
 export async function fetchSalesSummary(): Promise<SalesSummaryResponse | null> {
   try {
-    const res = await fetch("/api/sales/summary", { cache: "no-store" });
-    if (!res.ok) return null;
-    const data = await res.json();
+    const data = await get<{ summary: SalesSummaryResponse }>("/api/sales/summary", {
+      cache: "no-store",
+    });
     return data.summary || null;
   } catch (error) {
     console.error("Error fetching sales summary:", error);
@@ -110,11 +94,13 @@ export async function fetchSalesSummary(): Promise<SalesSummaryResponse | null> 
   }
 }
 
-export async function fetchNotes(): Promise<Array<{ id: string; title: string; content: string; tags: string[]; is_pinned: boolean }>> {
+export async function fetchNotes(): Promise<
+  Array<{ id: string; title: string; content: string; tags: string[]; is_pinned: boolean }>
+> {
   try {
-    const res = await fetch("/api/notes", { cache: "no-store" });
-    if (!res.ok) return [];
-    const data = await res.json();
+    const data = await get<{
+      notes: Array<{ id: string; title: string; content: string; tags: string[]; is_pinned: boolean }>;
+    }>("/api/notes", { cache: "no-store" });
     return data.notes || [];
   } catch (error) {
     console.error("Error fetching notes:", error);
@@ -122,14 +108,15 @@ export async function fetchNotes(): Promise<Array<{ id: string; title: string; c
   }
 }
 
-export async function saveQuickNote(note: { title: string; content: string; tags?: string[]; isPinned?: boolean }) {
+export async function saveQuickNote(note: {
+  title: string;
+  content: string;
+  tags?: string[];
+  isPinned?: boolean;
+}): Promise<boolean> {
   try {
-    const res = await fetch("/api/notes", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(note),
-    });
-    return res.ok;
+    await post("/api/notes", note);
+    return true;
   } catch (error) {
     console.error("Error saving note:", error);
     return false;

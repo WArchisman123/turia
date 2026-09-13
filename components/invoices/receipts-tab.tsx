@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useRef } from "react";
 import {
   CreditCard,
   CheckCircle,
@@ -19,6 +19,7 @@ import {
   TableHeaderCell,
   TablePagination,
   TableEmptyState,
+  RowActionDropdown,
 } from "@/components/ui/data-table";
 
 interface ReceiptsTabProps {
@@ -374,40 +375,14 @@ export function ReceiptsTab({
                       </td>
 
                       {/* Actions */}
-                      <td className="py-3 px-3 text-center relative">
-                        <div className="relative inline-block">
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setActiveMenuId(activeMenuId === r.id ? null : r.id)
-                            }
-                            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
-                          >
-                            <MoreVertical className="size-3.5" />
-                          </button>
-
-                          {activeMenuId === r.id && (
-                            <div className="absolute right-0 top-8 z-30 w-44 bg-white rounded-xl shadow-lg border border-slate-200 py-1 text-xs text-slate-700">
-                              <button
-                                type="button"
-                                onClick={() => setActiveMenuId(null)}
-                                className="w-full px-3 py-2 hover:bg-slate-50 flex items-center gap-2 text-left cursor-pointer"
-                              >
-                                <Building className="size-3.5 text-indigo-600" />
-                                <span>Download Voucher</span>
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => setActiveMenuId(null)}
-                                className="w-full px-3 py-2 hover:bg-rose-50 text-rose-600 flex items-center gap-2 text-left cursor-pointer"
-                              >
-                                <Trash2 className="size-3.5" />
-                                <span>Delete Receipt</span>
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      </td>
+                      <ReceiptRowActionCell
+                        receipt={r}
+                        isOpen={activeMenuId === r.id}
+                        onToggle={() =>
+                          setActiveMenuId(activeMenuId === r.id ? null : r.id)
+                        }
+                        onClose={() => setActiveMenuId(null)}
+                      />
                     </tr>
                   );
                 })
@@ -433,5 +408,69 @@ export function ReceiptsTab({
         />
       </div>
     </div>
+  );
+}
+
+interface ReceiptRowActionCellProps {
+  receipt: PaymentReceipt;
+  isOpen: boolean;
+  onToggle: () => void;
+  onClose: () => void;
+}
+
+function ReceiptRowActionCell({
+  isOpen,
+  onToggle,
+  onClose,
+}: ReceiptRowActionCellProps) {
+  const triggerRef = useRef<HTMLButtonElement>(null);
+
+  return (
+    <td className="py-3 px-3 text-center">
+      <button
+        ref={triggerRef}
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          onToggle();
+        }}
+        className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+          isOpen
+            ? "text-slate-900 bg-slate-100"
+            : "text-slate-400 hover:text-slate-700 hover:bg-slate-100"
+        }`}
+        title="Actions"
+      >
+        <MoreVertical className="size-3.5" />
+      </button>
+
+      <RowActionDropdown
+        isOpen={isOpen}
+        onClose={onClose}
+        triggerRef={triggerRef}
+        width={176}
+      >
+        <button
+          type="button"
+          onClick={() => {
+            onClose();
+          }}
+          className="w-full px-3 py-2 hover:bg-slate-50 flex items-center gap-2 text-left cursor-pointer"
+        >
+          <Building className="size-3.5 text-indigo-600" />
+          <span>Download Voucher</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            onClose();
+          }}
+          className="w-full px-3 py-2 hover:bg-rose-50 text-rose-600 flex items-center gap-2 text-left cursor-pointer"
+        >
+          <Trash2 className="size-3.5" />
+          <span>Delete Receipt</span>
+        </button>
+      </RowActionDropdown>
+    </td>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import {
   MoreVertical,
   Copy,
@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { DSCItem, DSCLocation, DSCStatus } from "./types";
 import { cn } from "@/lib/utils";
+import { RowActionDropdown } from "@/components/ui/data-table";
 
 interface DSCTableProps {
   items: DSCItem[];
@@ -347,60 +348,15 @@ export function DSCTable({
         </td>
 
         {/* Row Action ⋮ */}
-        <td className="py-2.5 px-2 text-right relative">
-          <button
-            type="button"
-            onClick={() => setOpenMenuId(isMenuOpen ? null : item.id)}
-            className="size-7 rounded-md hover:bg-slate-200/60 dark:hover:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
-          >
-            <MoreVertical className="size-4" />
-          </button>
-
-          {isMenuOpen && (
-            <>
-              <div
-                className="fixed inset-0 z-20"
-                onClick={() => setOpenMenuId(null)}
-              />
-              <div className="absolute right-2 top-8 z-30 w-44 bg-white dark:bg-slate-900 rounded-lg shadow-lg border border-slate-200 dark:border-slate-800 py-1 text-left text-xs">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setOpenMenuId(null);
-                    onTransferCustody(item);
-                  }}
-                  className="w-full px-3 py-1.5 flex items-center gap-2 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 cursor-pointer"
-                >
-                  <Repeat className="size-3.5 text-indigo-500" />
-                  <span>Transfer Custody</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setOpenMenuId(null);
-                    onEdit(item);
-                  }}
-                  className="w-full px-3 py-1.5 flex items-center gap-2 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 cursor-pointer"
-                >
-                  <Edit2 className="size-3.5 text-slate-500" />
-                  <span>Edit Token Info</span>
-                </button>
-                <div className="my-1 border-t border-slate-100 dark:border-slate-800" />
-                <button
-                  type="button"
-                  onClick={() => {
-                    setOpenMenuId(null);
-                    onDelete(item);
-                  }}
-                  className="w-full px-3 py-1.5 flex items-center gap-2 hover:bg-rose-50 dark:hover:bg-rose-950/40 text-rose-600 dark:text-rose-400 cursor-pointer"
-                >
-                  <Trash2 className="size-3.5" />
-                  <span>Delete DSC</span>
-                </button>
-              </div>
-            </>
-          )}
-        </td>
+        <DSCRowActionCell
+          item={item}
+          isOpen={isMenuOpen}
+          onToggle={() => setOpenMenuId(isMenuOpen ? null : item.id)}
+          onClose={() => setOpenMenuId(null)}
+          onTransferCustody={onTransferCustody}
+          onEdit={onEdit}
+          onDelete={onDelete}
+        />
       </tr>
     );
   };
@@ -588,5 +544,85 @@ export function DSCTable({
         </div>
       </div>
     </div>
+  );
+}
+
+interface DSCRowActionCellProps {
+  item: DSCItem;
+  isOpen: boolean;
+  onToggle: () => void;
+  onClose: () => void;
+  onTransferCustody: (item: DSCItem) => void;
+  onEdit: (item: DSCItem) => void;
+  onDelete: (item: DSCItem) => void;
+}
+
+function DSCRowActionCell({
+  item,
+  isOpen,
+  onToggle,
+  onClose,
+  onTransferCustody,
+  onEdit,
+  onDelete,
+}: DSCRowActionCellProps) {
+  const triggerRef = useRef<HTMLButtonElement>(null);
+
+  return (
+    <td className="py-2.5 px-2 text-right">
+      <button
+        ref={triggerRef}
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          onToggle();
+        }}
+        className="size-7 rounded-md hover:bg-slate-200/60 dark:hover:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
+      >
+        <MoreVertical className="size-4" />
+      </button>
+
+      <RowActionDropdown
+        isOpen={isOpen}
+        onClose={onClose}
+        triggerRef={triggerRef}
+        width={176}
+      >
+        <button
+          type="button"
+          onClick={() => {
+            onClose();
+            onTransferCustody(item);
+          }}
+          className="w-full px-3 py-1.5 flex items-center gap-2 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 cursor-pointer"
+        >
+          <Repeat className="size-3.5 text-indigo-500" />
+          <span>Transfer Custody</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            onClose();
+            onEdit(item);
+          }}
+          className="w-full px-3 py-1.5 flex items-center gap-2 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 cursor-pointer"
+        >
+          <Edit2 className="size-3.5 text-slate-500" />
+          <span>Edit Token Info</span>
+        </button>
+        <div className="my-1 border-t border-slate-100 dark:border-slate-800" />
+        <button
+          type="button"
+          onClick={() => {
+            onClose();
+            onDelete(item);
+          }}
+          className="w-full px-3 py-1.5 flex items-center gap-2 hover:bg-rose-50 dark:hover:bg-rose-950/40 text-rose-600 dark:text-rose-400 cursor-pointer"
+        >
+          <Trash2 className="size-3.5" />
+          <span>Delete DSC</span>
+        </button>
+      </RowActionDropdown>
+    </td>
   );
 }

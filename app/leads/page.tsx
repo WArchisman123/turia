@@ -8,7 +8,7 @@ import { LeadsTable } from "@/components/leads/leads-table";
 import { AddLeadModal } from "@/components/leads/add-lead-modal";
 import { ImportLeadsModal } from "@/components/leads/import-leads-modal";
 import { LeadItem, LeadFilterState } from "@/components/leads/types";
-import { fetchLeads, createLead, updateLeadStatus, deleteLead } from "@/lib/api/leads";
+import { fetchLeads, createLead, updateLeadStatus, deleteLead } from "@/lib/api";
 import {
   UserPlus,
   Filter,

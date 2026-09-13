@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useRef } from "react";
 import {
   FileText,
   Clock,
@@ -23,6 +23,7 @@ import {
   TableHeaderCell,
   TablePagination,
   TableEmptyState,
+  RowActionDropdown,
 } from "@/components/ui/data-table";
 
 interface ProformaTabProps {
@@ -461,77 +462,18 @@ export function ProformaTab({
                       </td>
 
                       {/* Actions Menu */}
-                      <td className="py-3 px-3 text-center relative">
-                        <div className="relative inline-block">
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setActiveMenuId(activeMenuId === p.id ? null : p.id)
-                            }
-                            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
-                          >
-                            <MoreVertical className="size-3.5" />
-                          </button>
-
-                          {activeMenuId === p.id && (
-                            <div className="absolute right-0 top-8 z-30 w-48 bg-white rounded-xl shadow-lg border border-slate-200 py-1 text-xs text-slate-700">
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  onViewInvoice(p);
-                                  setActiveMenuId(null);
-                                }}
-                                className="w-full px-3 py-2 hover:bg-slate-50 flex items-center gap-2 text-left cursor-pointer"
-                              >
-                                <Printer className="size-3.5 text-slate-500" />
-                                <span>View / Print Proforma</span>
-                              </button>
-
-                              {p.status !== "converted" && (
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    onConvertToTaxInvoice(p.id);
-                                    setActiveMenuId(null);
-                                  }}
-                                  className="w-full px-3 py-2 hover:bg-indigo-50 text-indigo-700 font-semibold flex items-center gap-2 text-left cursor-pointer"
-                                >
-                                  <ArrowRightCircle className="size-3.5 text-indigo-600" />
-                                  <span>Convert to Tax Invoice</span>
-                                </button>
-                              )}
-
-                              {p.balance_due > 0 && (
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    onRecordPayment(p.id);
-                                    setActiveMenuId(null);
-                                  }}
-                                  className="w-full px-3 py-2 hover:bg-slate-50 flex items-center gap-2 text-left cursor-pointer"
-                                >
-                                  <CreditCard className="size-3.5 text-emerald-600" />
-                                  <span>Record Advance Payment</span>
-                                </button>
-                              )}
-
-                              <div className="border-t border-slate-100 my-1" />
-
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  onDeleteInvoice(p.id);
-                                  setActiveMenuId(null);
-                                }}
-                                className="w-full px-3 py-2 hover:bg-rose-50 text-rose-600 flex items-center gap-2 text-left cursor-pointer"
-                              >
-                                <Trash2 className="size-3.5" />
-                                <span>Delete Proforma</span>
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      </td>
+                      <ProformaRowActionCell
+                        invoice={p}
+                        isOpen={activeMenuId === p.id}
+                        onToggle={() =>
+                          setActiveMenuId(activeMenuId === p.id ? null : p.id)
+                        }
+                        onClose={() => setActiveMenuId(null)}
+                        onViewInvoice={onViewInvoice}
+                        onConvertToTaxInvoice={onConvertToTaxInvoice}
+                        onRecordPayment={onRecordPayment}
+                        onDeleteInvoice={onDeleteInvoice}
+                      />
                     </tr>
                   );
                 })
@@ -557,5 +499,111 @@ export function ProformaTab({
         />
       </div>
     </div>
+  );
+}
+
+interface ProformaRowActionCellProps {
+  invoice: Invoice;
+  isOpen: boolean;
+  onToggle: () => void;
+  onClose: () => void;
+  onViewInvoice: (invoice: Invoice) => void;
+  onConvertToTaxInvoice: (id: string) => Promise<void>;
+  onRecordPayment: (invoiceId: string) => void;
+  onDeleteInvoice: (id: string) => Promise<void>;
+}
+
+function ProformaRowActionCell({
+  invoice,
+  isOpen,
+  onToggle,
+  onClose,
+  onViewInvoice,
+  onConvertToTaxInvoice,
+  onRecordPayment,
+  onDeleteInvoice,
+}: ProformaRowActionCellProps) {
+  const triggerRef = useRef<HTMLButtonElement>(null);
+
+  return (
+    <td className="py-3 px-3 text-center">
+      <button
+        ref={triggerRef}
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          onToggle();
+        }}
+        className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+          isOpen
+            ? "text-slate-900 bg-slate-100"
+            : "text-slate-400 hover:text-slate-700 hover:bg-slate-100"
+        }`}
+        title="Actions"
+      >
+        <MoreVertical className="size-3.5" />
+      </button>
+
+      <RowActionDropdown
+        isOpen={isOpen}
+        onClose={onClose}
+        triggerRef={triggerRef}
+        width={192}
+      >
+        <button
+          type="button"
+          onClick={() => {
+            onViewInvoice(invoice);
+            onClose();
+          }}
+          className="w-full px-3 py-2 hover:bg-slate-50 flex items-center gap-2 text-left cursor-pointer"
+        >
+          <Printer className="size-3.5 text-slate-500" />
+          <span>View / Print Proforma</span>
+        </button>
+
+        {invoice.status !== "converted" && (
+          <button
+            type="button"
+            onClick={() => {
+              onConvertToTaxInvoice(invoice.id);
+              onClose();
+            }}
+            className="w-full px-3 py-2 hover:bg-indigo-50 text-indigo-700 font-semibold flex items-center gap-2 text-left cursor-pointer"
+          >
+            <ArrowRightCircle className="size-3.5 text-indigo-600" />
+            <span>Convert to Tax Invoice</span>
+          </button>
+        )}
+
+        {invoice.balance_due > 0 && (
+          <button
+            type="button"
+            onClick={() => {
+              onRecordPayment(invoice.id);
+              onClose();
+            }}
+            className="w-full px-3 py-2 hover:bg-slate-50 flex items-center gap-2 text-left cursor-pointer"
+          >
+            <CreditCard className="size-3.5 text-emerald-600" />
+            <span>Record Advance Payment</span>
+          </button>
+        )}
+
+        <div className="border-t border-slate-100 my-1" />
+
+        <button
+          type="button"
+          onClick={() => {
+            onDeleteInvoice(invoice.id);
+            onClose();
+          }}
+          className="w-full px-3 py-2 hover:bg-rose-50 text-rose-600 flex items-center gap-2 text-left cursor-pointer"
+        >
+          <Trash2 className="size-3.5" />
+          <span>Delete Proforma</span>
+        </button>
+      </RowActionDropdown>
+    </td>
   );
 }

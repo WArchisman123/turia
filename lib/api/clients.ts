@@ -1,62 +1,24 @@
+import { get, post, patch, del } from "@/lib/api";
 import { ClientItem, ClientFormData, ClientKpiData } from "@/components/clients/types";
 
 export async function fetchClients(): Promise<{ clients: ClientItem[]; kpi: ClientKpiData }> {
-  const res = await fetch("/api/clients", {
-    method: "GET",
-    headers: { "Content-Type": "application/json" },
+  return get<{ clients: ClientItem[]; kpi: ClientKpiData }>("/api/clients", {
     cache: "no-store",
   });
-
-  if (!res.ok) {
-    throw new Error(`Failed to fetch clients: ${res.statusText}`);
-  }
-
-  return res.json();
 }
 
 export async function createClient(formData: ClientFormData): Promise<ClientItem> {
-  const res = await fetch("/api/clients", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(formData),
-  });
-
-  if (!res.ok) {
-    const errorData = await res.json().catch(() => ({}));
-    throw new Error(errorData.error || "Failed to create client");
-  }
-
-  const data = await res.json();
+  const data = await post<{ client: ClientItem }>("/api/clients", formData);
   return data.client;
 }
 
 export async function updateClient(id: string, updates: Partial<ClientItem>): Promise<ClientItem> {
-  const res = await fetch(`/api/clients/${id}`, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(updates),
-  });
-
-  if (!res.ok) {
-    const errorData = await res.json().catch(() => ({}));
-    throw new Error(errorData.error || "Failed to update client");
-  }
-
-  const data = await res.json();
+  const data = await patch<{ client: ClientItem }>(`/api/clients/${id}`, updates);
   return data.client;
 }
 
 export async function deleteClient(id: string): Promise<boolean> {
-  const res = await fetch(`/api/clients/${id}`, {
-    method: "DELETE",
-    headers: { "Content-Type": "application/json" },
-  });
-
-  if (!res.ok) {
-    const errorData = await res.json().catch(() => ({}));
-    throw new Error(errorData.error || "Failed to delete client");
-  }
-
+  await del(`/api/clients/${id}`);
   return true;
 }
 
@@ -68,15 +30,9 @@ export async function importClientsFile(file: File): Promise<{
   const formData = new FormData();
   formData.append("file", file);
 
-  const res = await fetch("/api/clients/import", {
-    method: "POST",
-    body: formData,
-  });
-
-  if (!res.ok) {
-    const errorData = await res.json().catch(() => ({}));
-    throw new Error(errorData.error || "Failed to import clients file");
-  }
-
-  return res.json();
+  return post<{
+    insertedCount: number;
+    skippedCount: number;
+    clients: ClientItem[];
+  }>("/api/clients/import", formData);
 }

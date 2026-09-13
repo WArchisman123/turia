@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useMemo, useRef } from "react";
 import {
   MoreVertical,
   Eye,
@@ -17,6 +17,7 @@ import {
   TableActiveModifiers,
   TablePagination,
   TableEmptyState,
+  RowActionDropdown,
 } from "@/components/ui/data-table";
 
 interface ServicesTableProps {
@@ -57,16 +58,6 @@ export function ServicesTable({
   const [columnFilters, setColumnFilters] = useState<Record<string, string>>({});
   const [hiddenColumnKeys, setHiddenColumnKeys] = useState<string[]>([]);
 
-  // Close menus on outside click
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (!(event.target as HTMLElement).closest(".row-action-menu-container")) {
-        setActiveRowMenuId(null);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
 
   const handleSelectAll = () => {
     if (selectedIds.length === services.length) {
@@ -476,62 +467,19 @@ export function ServicesTable({
                     })}
 
                     {/* Actions Menu */}
-                    <td className="py-3 px-4 w-12 text-right relative row-action-menu-container">
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setActiveRowMenuId(activeRowMenuId === service.id ? null : service.id);
-                        }}
-                        className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
-                      >
-                        <MoreVertical className="size-4" />
-                      </button>
-
-                      {activeRowMenuId === service.id && (
-                        <div className="absolute right-4 top-10 w-44 bg-white rounded-xl shadow-xl border border-slate-200 py-1.5 z-30 animate-in fade-in zoom-in-95 duration-100 text-left">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              onSelectService?.(service);
-                              setActiveRowMenuId(null);
-                            }}
-                            className="w-full px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-50 flex items-center gap-2 font-medium cursor-pointer"
-                          >
-                            <Eye className="size-3.5 text-indigo-600" />
-                            <span>View Details</span>
-                          </button>
-                          {onToggleStatus && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                onToggleStatus(service.id, !service.isActive);
-                                setActiveRowMenuId(null);
-                              }}
-                              className="w-full px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-50 flex items-center gap-2 font-medium cursor-pointer"
-                            >
-                              <Repeat className="size-3.5 text-slate-600" />
-                              <span>{service.isActive ? "Deactivate" : "Activate"}</span>
-                            </button>
-                          )}
-                          {onDeleteService && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                if (confirm(`Are you sure you want to delete "${service.serviceName}"?`)) {
-                                  onDeleteService(service.id);
-                                }
-                                setActiveRowMenuId(null);
-                              }}
-                              className="w-full px-3 py-1.5 text-xs text-rose-600 hover:bg-rose-50 flex items-center gap-2 font-medium cursor-pointer"
-                            >
-                              <Trash2 className="size-3.5 text-rose-600" />
-                              <span>Delete Service</span>
-                            </button>
-                          )}
-                        </div>
-                      )}
-                    </td>
+                    <ServiceRowActionCell
+                      service={service}
+                      isOpen={activeRowMenuId === service.id}
+                      onToggle={() =>
+                        setActiveRowMenuId(
+                          activeRowMenuId === service.id ? null : service.id
+                        )
+                      }
+                      onClose={() => setActiveRowMenuId(null)}
+                      onSelectService={onSelectService}
+                      onToggleStatus={onToggleStatus}
+                      onDeleteService={onDeleteService}
+                    />
                   </tr>
                 );
               })
@@ -557,5 +505,101 @@ export function ServicesTable({
         rowsPerPageOptions={[20, 50, 100]}
       />
     </div>
+  );
+}
+
+interface ServiceRowActionCellProps {
+  service: ServiceItem;
+  isOpen: boolean;
+  onToggle: () => void;
+  onClose: () => void;
+  onSelectService?: (service: ServiceItem) => void;
+  onToggleStatus?: (id: string, newStatus: boolean) => void;
+  onDeleteService?: (id: string) => void;
+}
+
+function ServiceRowActionCell({
+  service,
+  isOpen,
+  onToggle,
+  onClose,
+  onSelectService,
+  onToggleStatus,
+  onDeleteService,
+}: ServiceRowActionCellProps) {
+  const triggerRef = useRef<HTMLButtonElement>(null);
+
+  return (
+    <td className="py-3 px-4 w-12 text-right">
+      <button
+        ref={triggerRef}
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          onToggle();
+        }}
+        className={`p-1 rounded-lg transition-colors cursor-pointer ${
+          isOpen
+            ? "text-slate-900 bg-slate-100"
+            : "text-slate-400 hover:text-slate-600 hover:bg-slate-100"
+        }`}
+        title="Service actions"
+      >
+        <MoreVertical className="size-4" />
+      </button>
+
+      <RowActionDropdown
+        isOpen={isOpen}
+        onClose={onClose}
+        triggerRef={triggerRef}
+        width={176}
+      >
+        <button
+          type="button"
+          onClick={() => {
+            onSelectService?.(service);
+            onClose();
+          }}
+          className="w-full px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-50 flex items-center gap-2 font-medium cursor-pointer"
+        >
+          <Eye className="size-3.5 text-indigo-600" />
+          <span>View Details</span>
+        </button>
+
+        {onToggleStatus && (
+          <button
+            type="button"
+            onClick={() => {
+              onToggleStatus(service.id, !service.isActive);
+              onClose();
+            }}
+            className="w-full px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-50 flex items-center gap-2 font-medium cursor-pointer"
+          >
+            <Repeat className="size-3.5 text-slate-600" />
+            <span>{service.isActive ? "Deactivate" : "Activate"}</span>
+          </button>
+        )}
+
+        {onDeleteService && (
+          <button
+            type="button"
+            onClick={() => {
+              if (
+                confirm(
+                  `Are you sure you want to delete "${service.serviceName}"?`
+                )
+              ) {
+                onDeleteService(service.id);
+              }
+              onClose();
+            }}
+            className="w-full px-3 py-1.5 text-xs text-rose-600 hover:bg-rose-50 flex items-center gap-2 font-medium cursor-pointer"
+          >
+            <Trash2 className="size-3.5 text-rose-600" />
+            <span>Delete Service</span>
+          </button>
+        )}
+      </RowActionDropdown>
+    </td>
   );
 }
